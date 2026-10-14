@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>樂團旅遊對帳與存取監控系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+  <!-- Header -->
+  <header class="bg-indigo-700 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
+          <i class="fa-solid fa-music text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多行程支援 · 存取監控</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- 行程選擇器 -->
+        <div class="relative">
+          <select id="tripSelector" onchange="switchTrip()" class="bg-indigo-800 text-white text-sm px-3 py-2 pr-8 rounded-lg border border-indigo-500 focus:outline-none focus:ring-2 focus:ring-white">
+            <option value="hualien2027">2027 寒假花蓮旅行</option>
+            <option value="vienna2027">2027 暑假維也納音樂節</option>
+          </select>
+        </div>
+
+        <button id="adminBtn" onclick="openAdminLoginModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-3 py-2 rounded-lg transition flex items-center gap-1.5">
+          <i class="fa-solid fa-user-gear"></i> 幹部後台
+        </button>
+
+        <button id="logoutBtn" onclick="logout()" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-2 rounded-lg transition">
+          <i class="fa-solid fa-right-from-bracket"></i> 登出
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- 登入區塊 -->
+    <div id="loginSection" class="max-w-md mx-auto bg-white rounded-2xl shadow-md p-6 border border-slate-100">
+      <div class="text-center mb-6">
+        <span id="currentTripBadge" class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
+          當前行程：2027 寒假花蓮旅行
+        </span>
+        <h2 class="text-xl font-bold text-slate-800 mt-3">團員身分驗證</h2>
+        <p class="text-slate-500 text-sm mt-1">請輸入學生姓名與生日進行登入</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
+          <input type="text" id="studentName" placeholder="例如：陳佑宇" required
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
+          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+        </div>
+
+        <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。
+        </div>
+
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-md transition duration-200">
+          核對並登入
+        </button>
+      </form>
+    </div>
+
+    <!-- 家長查詢結果 Dashboard -->
+    <div id="dashboardSection" class="hidden space-y-6">
+      
+      <!-- 歡迎卡片 -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span id="userTripTag" class="text-indigo-600 text-xs font-semibold uppercase tracking-wider bg-indigo-100 px-2.5 py-1 rounded-full">--</span>
+          <h2 class="text-2xl font-bold text-slate-800 mt-2"><span id="displayName">--</span> 同學家長 您好！</h2>
+          <p class="text-slate-600 text-sm mt-1">分房需求：<span id="displayRoom" class="font-medium text-slate-800">--</span></p>
+        </div>
+      </div>
+
+      <!-- 金額概覽卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-slate-500 text-sm">應繳總費用</p>
+          <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="displayTotal">0</span></p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-slate-500 text-sm">已收訂金金額</p>
+          <div class="flex items-baseline gap-2 mt-1">
+            <p class="text-2xl font-bold text-emerald-600">NT$ <span id="displayDeposit">0</span></p>
+          </div>
+          <p class="text-xs text-slate-400 mt-1" id="displayInfo">付款紀錄：--</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm">
+          <p class="text-amber-800 text-sm font-medium">剩餘尾款應繳</p>
+          <p class="text-2xl font-bold text-amber-600 mt-1">NT$ <span id="displayBalance">0</span></p>
+        </div>
+      </div>
+
+      <!-- 匯款說明與回報 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+          <i class="fa-solid fa-credit-card text-indigo-600"></i> 尾款繳納與帳戶資訊
+        </h3>
+        <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
+          <p><span class="font-semibold text-slate-900">匯款銀行：</span> 玉山銀行 (808)</p>
+          <p><span class="font-semibold text-slate-900">戶名：</span> 樂團後援會公戶</p>
+          <p><span class="font-semibold text-slate-900">帳號：</span> 1234-567-890123</p>
+          <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
+        </div>
+
+        <button onclick="openReportModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-paper-plane"></i> 回報尾款匯款紀錄（帳號後 5 碼）
+        </button>
+      </div>
+
+    </div>
+
+    <!-- 幹部管理面板 (Admin Dashboard) -->
+    <div id="adminSection" class="hidden space-y-6">
+      <div class="flex justify-between items-center bg-slate-900 text-white p-6 rounded-2xl shadow-lg">
+        <div>
+          <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-medium">幹部管理後台</span>
+          <h2 class="text-2xl font-bold mt-2">存取 Monitor 與對帳總覽</h2>
+        </div>
+        <button onclick="closeAdminSection()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm">
+          退出後台
+        </button>
+      </div>
+
+      <!-- 分頁頁籤 -->
+      <div class="flex border-b border-slate-200 gap-4">
+        <button onclick="switchAdminTab('unviewed')" id="tabUnviewed" class="py-2.5 px-4 font-semibold text-indigo-600 border-b-2 border-indigo-600">
+          <i class="fa-solid fa-eye-slash mr-1"></i> 未查看團員名單
+        </button>
+        <button onclick="switchAdminTab('logs')" id="tabLogs" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-700">
+          <i class="fa-solid fa-list-check mr-1"></i> 存取 Log 紀錄
+        </button>
+      </div>
+
+      <!-- 分頁 1：未查看團員名單 -->
+      <div id="adminTabUnviewed" class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-lg text-slate-800">尚未查看/登入對帳系統之學生</h3>
+            <p class="text-sm text-slate-500">方便幹部追蹤誰還沒有確認過金額</p>
+          </div>
+          <div class="text-right">
+            <span class="text-2xl font-bold text-amber-600" id="unviewedCount">0</span>
+            <span class="text-sm text-slate-500">/ <span id="totalStudentsCount">0</span> 人未查看</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-slate-600 border-b">
+              <tr>
+                <th class="py-3 px-4">學生姓名</th>
+                <th class="py-3 px-4">房型</th>
+                <th class="py-3 px-4">應繳總額</th>
+                <th class="py-3 px-4">訂金狀態</th>
+                <th class="py-3 px-4">狀態</th>
+              </tr>
+            </thead>
+            <tbody id="unviewedTableBody" class="divide-y">
+              <!-- JS 動態渲染 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 分頁 2：存取 Log 紀錄 -->
+      <div id="adminTabLogs" class="hidden bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="font-bold text-lg text-slate-800">系統即時 Access Logs</h3>
+          <button onclick="exportLogsCSV()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg font-medium">
+            <i class="fa-solid fa-file-csv mr-1"></i> 匯出 Logs CSV
+          </button>
+        </div>
+
+        <div class="overflow-x-auto max-h-96">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-slate-600 sticky top-0">
+              <tr>
+                <th class="py-2.5 px-4">時間</th>
+                <th class="py-2.5 px-4">行程</th>
+                <th class="py-2.5 px-4">學生姓名</th>
+                <th class="py-2.5 px-4">事件</th>
+                <th class="py-2.5 px-4">狀態</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody" class="divide-y font-mono text-xs">
+              <!-- JS 動態渲染 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 幹部登入 Modal -->
+  <div id="adminLoginModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+      <h3 class="font-bold text-lg text-slate-800">幹部身份驗證</h3>
+      <input type="password" id="adminPassword" placeholder="請輸入管理員密碼 (預設: admin123)" class="w-full px-3 py-2 border rounded-lg outline-none">
+      <div id="adminLoginError" class="hidden text-xs text-rose-500">密碼錯誤，請重新輸入。</div>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeAdminLoginModal()" class="px-4 py-2 text-sm text-slate-500">取消</button>
+        <button onclick="loginAdmin()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg">登入後台</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 多行程資料庫 (對應不同的 Google Spreadsheets)
+    const tripsDB = {
+      hualien2027: {
+        title: "2027 寒假花蓮旅行",
+        students: [
+          { name: "陳佑宇", birthday: ["2013/9/28", "20130928"], room: "三人房4", total: 12340, deposit: 5000, depositNote: "9月20日 轉帳" },
+          { name: "林品安", birthday: ["2013/10/5", "20131005"], room: "四人房1", total: 46028, deposit: 0, depositNote: "未對到帳" },
+          { name: "巫芃緯", birthday: ["2014/7/22", "20140722"], room: "二人房1", total: 25314, deposit: 10000, depositNote: "10月2日 轉帳" },
+          { name: "賴冠勛", birthday: ["2013/5/14", "20130514"], room: "三人房5", total: 12340, deposit: 5100, depositNote: "10月1日 刷卡" },
+          { name: "蔡雨霏", birthday: ["2014/5/9", "20140509"], room: "二人房2", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" },
+          { name: "張惠棋", birthday: ["2013/8/3", "20130803"], room: "二人房3", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" }
+        ]
+      },
+      vienna2027: {
+        title: "2027 暑假維也納音樂節",
+        students: [
+          { name: "陳佑宇", birthday: ["2013/9/28", "20130928"], room: "雙人房", total: 128000, deposit: 30000, depositNote: "已收到第一期訂金" },
+          { name: "王小明", birthday: ["2012/05/15", "20120515"], room: "雙人房", total: 128000, deposit: 30000, depositNote: "已收到第一期訂金" },
+          { name: "李小華", birthday: ["2012/08/20", "20120820"], room: "三人房", total: 122000, deposit: 0, depositNote: "尚未繳費" }
+        ]
+      }
+    };
+
+    let currentTripKey = "hualien2027";
+    let currentUser = null;
+    let accessLogs = JSON.parse(localStorage.getItem('orchestra_access_logs') || '[]');
+
+    function switchTrip() {
+      currentTripKey = document.getElementById('tripSelector').value;
+      const trip = tripsDB[currentTripKey];
+      document.getElementById('currentTripBadge').innerText = `當前行程：${trip.title}`;
+      if (currentUser) logout();
+    }
+
+    function addLog(studentName, event, status) {
+      const log = {
+        time: new Date().toLocaleString(),
+        trip: tripsDB[currentTripKey].title,
+        studentName: studentName || "未知",
+        event: event,
+        status: status
+      };
+      accessLogs.unshift(log);
+      localStorage.setItem('orchestra_access_logs', JSON.stringify(accessLogs));
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('studentName').value.trim();
+      const bdayInput = document.getElementById('studentBirthday').value.trim().replace(/[-/]/g, "");
+
+      const trip = tripsDB[currentTripKey];
+      const user = trip.students.find(student => {
+        const isNameMatch = student.name === nameInput;
+        const isBdayMatch = student.birthday.some(b => b.replace(/[-/]/g, "") === bdayInput);
+        return isNameMatch && isBdayMatch;
+      });
+
+      if (user) {
+        currentUser = user;
+        addLog(user.name, "家長登入查詢", "成功");
+        
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        document.getElementById('userTripTag').innerText = trip.title;
+        document.getElementById('displayName').innerText = user.name;
+        document.getElementById('displayRoom').innerText = user.room;
+        document.getElementById('displayTotal').innerText = user.total.toLocaleString();
+        document.getElementById('displayDeposit').innerText = user.deposit.toLocaleString();
+        document.getElementById('displayInfo').innerText = "付款紀錄：" + user.depositNote;
+        document.getElementById('displayBalance').innerText = Math.max(0, user.total - user.deposit).toLocaleString();
+      } else {
+        addLog(nameInput, "家長嘗試登入", "驗證失敗");
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    // Admin Functions
+    function openAdminLoginModal() { document.getElementById('adminLoginModal').classList.remove('hidden'); }
+    function closeAdminLoginModal() { document.getElementById('adminLoginModal').classList.add('hidden'); }
+
+    function loginAdmin() {
+      const pwd = document.getElementById('adminPassword').value;
+      if (pwd === "admin123") {
+        closeAdminLoginModal();
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+        renderAdminData();
+      } else {
+        document.getElementById('adminLoginError').classList.remove('hidden');
+      }
+    }
+
+    function closeAdminSection() {
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderAdminData() {
+      const trip = tripsDB[currentTripKey];
+      
+      // 比對 Log 中哪些學生已有成功登入紀錄
+      const viewedStudentNames = new Set(
+        accessLogs
+          .filter(log => log.trip === trip.title && log.status === "成功")
+          .map(log => log.studentName)
+      );
+
+      const unviewedStudents = trip.students.filter(s => !viewedStudentNames.has(s.name));
+
+      document.getElementById('totalStudentsCount').innerText = trip.students.length;
+      document.getElementById('unviewedCount').innerText = unviewedStudents.length;
+
+      // 渲染未查看清單
+      const unviewedBody = document.getElementById('unviewedTableBody');
+      unviewedBody.innerHTML = unviewedStudents.map(s => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-4 font-semibold text-slate-800">${s.name}</td>
+          <td class="py-3 px-4 text-slate-600">${s.room}</td>
+          <td class="py-3 px-4">NT$ ${s.total.toLocaleString()}</td>
+          <td class="py-3 px-4"><span class="text-xs px-2 py-1 rounded ${s.deposit > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${s.depositNote}</span></td>
+          <td class="py-3 px-4"><span class="text-xs bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full font-medium">尚未登入查看</span></td>
+        </tr>
+      `).join('');
+
+      // 渲染 Logs
+      const logsBody = document.getElementById('logsTableBody');
+      logsBody.innerHTML = accessLogs.map(l => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2 px-4 text-slate-500">${l.time}</td>
+          <td class="py-2 px-4 text-slate-600">${l.trip}</td>
+          <td class="py-2 px-4 font-semibold text-slate-800">${l.studentName}</td>
+          <td class="py-2 px-4">${l.event}</td>
+          <td class="py-2 px-4"><span class="${l.status === '成功' ? 'text-emerald-600' : 'text-rose-600'} font-bold">${l.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function switchAdminTab(tab) {
+      if (tab === 'unviewed') {
+        document.getElementById('adminTabUnviewed').classList.remove('hidden');
+        document.getElementById('adminTabLogs').classList.add('hidden');
+      } else {
+        document.getElementById('adminTabUnviewed').classList.add('hidden');
+        document.getElementById('adminTabLogs').classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
