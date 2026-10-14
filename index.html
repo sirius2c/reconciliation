@@ -57,12 +57,12 @@
       <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
-          <input type="text" id="studentName" placeholder="例如：陳佑宇" required
+          <input type="text" id="studentName" placeholder="例如：王小明" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
-          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
+          <input type="text" id="studentBirthday" placeholder="例如：20130101 或 2013/1/1" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
 
@@ -223,7 +223,7 @@
   </div>
 
   <script>
-    // 多行程資料庫 (對應不同的 Google Spreadsheets)
+    // 完整 53 位參團學生帳務資料庫
     const tripsDB = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
@@ -233,13 +233,58 @@
           { name: "巫芃緯", birthday: ["2014/7/22", "20140722"], room: "二人房1", total: 25314, deposit: 10000, depositNote: "10月2日 轉帳" },
           { name: "賴冠勛", birthday: ["2013/5/14", "20130514"], room: "三人房5", total: 12340, deposit: 5100, depositNote: "10月1日 刷卡" },
           { name: "蔡雨霏", birthday: ["2014/5/9", "20140509"], room: "二人房2", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" },
-          { name: "張惠棋", birthday: ["2013/8/3", "20130803"], room: "二人房3", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" }
+          { name: "張惠棋", birthday: ["2013/8/3", "20130803"], room: "二人房3", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" },
+          { name: "蕭宇辰", birthday: ["2014/3/4", "20140304"], room: "四人房2", total: 11507, deposit: 5000, depositNote: "9月30日 轉帳" },
+          { name: "何碩元", birthday: ["2013/5/12", "20130512"], room: "二人房4", total: 25314, deposit: 10000, depositNote: "10月1日 轉帳" },
+          { name: "林洛萱", birthday: ["2014/3/28", "20140328"], room: "四人房3", total: 11507, deposit: 5000, depositNote: "9月29日 轉帳" },
+          { name: "盧品妤", birthday: ["2013/12/18", "20131218"], room: "四人房3", total: 11507, deposit: 5000, depositNote: "9月22日 轉帳" },
+          { name: "曾上恩", birthday: ["2012/12/17", "20121217"], room: "四人房4", total: 11507, deposit: 5000, depositNote: "9月23日 轉帳" },
+          { name: "林尚蓉", birthday: ["2013/11/18", "20131118"], room: "四人房3", total: 11507, deposit: 5000, depositNote: "9月23日 轉帳" },
+          { name: "林芊妤", birthday: ["2014/6/23", "20140623"], room: "四人房3", total: 11507, deposit: 5000, depositNote: "9月23日 轉帳" },
+          { name: "劉宣齡", birthday: ["2014/8/28", "20140828"], room: "四人房4", total: 11507, deposit: 5000, depositNote: "9月24日 轉帳" },
+          { name: "莊牧錡", birthday: ["2014/2/13", "20140213"], room: "四人房2", total: 11507, deposit: 5000, depositNote: "10月1日 轉帳" },
+          { name: "程柏馨", birthday: ["2014/4/4", "20140404"], room: "二人房5", total: 25314, deposit: 10000, depositNote: "9月24日 轉帳" },
+          { name: "聞安娜", birthday: ["2013/11/15", "20131115"], room: "四人房5", total: 11507, deposit: 5000, depositNote: "9月22日 轉帳" },
+          { name: "徐沛揚", birthday: ["2012/9/21", "20120921"], room: "三人房5", total: 12340, deposit: 20000, depositNote: "9月25日 轉帳" },
+          { name: "林宜甫", birthday: ["2013/5/25", "20130525"], room: "三人房5", total: 24997, deposit: 10000, depositNote: "9月25日 轉帳" },
+          { name: "楊婕霓", birthday: ["2014/5/7", "20140507"], room: "四人房5", total: 11507, deposit: 5000, depositNote: "10月5日 轉帳" },
+          { name: "陳柏劭", birthday: ["2012/9/11", "20120911"], room: "二人房18", total: 37971, deposit: 15300, depositNote: "10月5日 刷卡" },
+          { name: "郭恆立", birthday: ["2014/1/2", "20140102"], room: "二人房8", total: 25314, deposit: 10000, depositNote: "9月27日 轉帳" },
+          { name: "張在朋", birthday: ["2012/9/19", "20120919"], room: "四人房6", total: 11507, deposit: 0, depositNote: "未對到帳" },
+          { name: "陳昱安", birthday: ["2019/8/28", "20190828"], room: "二人房9", total: 25314, deposit: 0, depositNote: "未對到帳" },
+          { name: "曾鈺博", birthday: ["2012/11/16", "20121116"], room: "四人房6", total: 11507, deposit: 0, depositNote: "未對到帳" },
+          { name: "許品薰", birthday: ["2013/6/4", "20130604"], room: "二人房17", total: 12657, deposit: 5100, depositNote: "10月1日 刷卡" },
+          { name: "劉芷希", birthday: ["2013/6/1", "20130601"], room: "二人房17", total: 12657, deposit: 0, depositNote: "未對到帳" },
+          { name: "葉宥均", birthday: ["2013/7/28", "20130728"], room: "三人房1", total: 37020, deposit: 0, depositNote: "未對到帳" },
+          { name: "林岳德", birthday: ["2013/1/26", "20130126"], room: "三人房2", total: 37020, deposit: 0, depositNote: "未對到帳" },
+          { name: "呂采潔", birthday: ["2012/12/24", "20121224"], room: "四人房7", total: 11507, deposit: 5100, depositNote: "10月1日 刷卡" },
+          { name: "吳念祖", birthday: ["2013/3/21", "20130321"], room: "四人房6", total: 11507, deposit: 5000, depositNote: "9月29日 轉帳" },
+          { name: "陳艾瑪", birthday: ["2014/4/25", "20140425"], room: "二人房12", total: 25314, deposit: 10000, depositNote: "10月2日 轉帳" },
+          { name: "周正朗", birthday: ["2013/9/19", "20130919"], room: "三人房4", total: 12340, deposit: 0, depositNote: "未對到帳" },
+          { name: "張柔謙", birthday: ["2014/2/15", "20140215"], room: "四人房4", total: 11507, deposit: 5000, depositNote: "9月30日 轉帳" },
+          { name: "張姮湘", birthday: ["2014/2/5", "20140205"], room: "二人房6", total: 25314, deposit: 10000, depositNote: "10月3日 轉帳" },
+          { name: "婁少瑄", birthday: ["2013/8/4", "20130804"], room: "四人房7", total: 11507, deposit: 5000, depositNote: "9月29日 轉帳" },
+          { name: "簡子皓", birthday: ["2013/8/16", "20130816"], room: "三人房5", total: 24997, deposit: 0, depositNote: "未對到帳" },
+          { name: "盧妤菲", birthday: ["2013/12/31", "20131231"], room: "四人房5", total: 11507, deposit: 5000, depositNote: "9月29日 轉帳" },
+          { name: "張瑄庭", birthday: ["2014/1/17", "20140117"], room: "二人房13", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" },
+          { name: "聶宜綸", birthday: ["2013/6/25", "20130625"], room: "四人房7", total: 11507, deposit: 5000, depositNote: "10月5日 轉帳" },
+          { name: "龔子嫣", birthday: ["2012/11/22", "20121122"], room: "二人房14", total: 25314, deposit: 0, depositNote: "未對到帳" },
+          { name: "連東翊", birthday: ["2014/2/12", "20140212"], room: "三人房4", total: 12340, deposit: 0, depositNote: "未對到帳" },
+          { name: "施羽真", birthday: ["2013/12/13", "20131213"], room: "四人房4", total: 11507, deposit: 5000, depositNote: "9月28日 轉帳" },
+          { name: "葉奕辰", birthday: ["2012/11/20", "20121120"], room: "四人房7", total: 11507, deposit: 0, depositNote: "未對到帳" },
+          { name: "陳奕宇", birthday: ["2013/9/7", "20130907"], room: "二人房10", total: 25314, deposit: 0, depositNote: "未對到帳" },
+          { name: "許宸綺", birthday: ["2013/3/29", "20130329"], room: "四人房5", total: 11507, deposit: 5000, depositNote: "9月26日 轉帳" },
+          { name: "林睿熙", birthday: ["2014/3/26", "20140326"], room: "四人房2", total: 11507, deposit: 0, depositNote: "未對到帳" },
+          { name: "王傳縉", birthday: ["2014/6/27", "20140627"], room: "四人房2", total: 11507, deposit: 5000, depositNote: "9月28日 轉帳" },
+          { name: "黃浩軒", birthday: ["2012/12/9", "20121209"], room: "二人房11", total: 25314, deposit: 10000, depositNote: "9月28日 轉帳" },
+          { name: "李昕展", birthday: ["2014/3/8", "20140308"], room: "四人房6", total: 11507, deposit: 10000, depositNote: "9月28日 轉帳" },
+          { name: "戴旖宸", birthday: ["2013/9/21", "20130921"], room: "三人房3", total: 37020, deposit: 10000, depositNote: "9/28,30 轉帳" },
+          { name: "路孟維", birthday: ["2012/12/22", "20121222"], room: "自行前往", total: 9482, deposit: 2000, depositNote: "10月3日 轉帳" }
         ]
       },
       vienna2027: {
         title: "2027 暑假維也納音樂節",
         students: [
-          { name: "陳佑宇", birthday: ["2013/9/28", "20130928"], room: "雙人房", total: 128000, deposit: 30000, depositNote: "已收到第一期訂金" },
           { name: "王小明", birthday: ["2012/05/15", "20120515"], room: "雙人房", total: 128000, deposit: 30000, depositNote: "已收到第一期訂金" },
           { name: "李小華", birthday: ["2012/08/20", "20120820"], room: "三人房", total: 122000, deposit: 0, depositNote: "尚未繳費" }
         ]
