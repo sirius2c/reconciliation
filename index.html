@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.2.2</title>
+  <title>樂團旅遊對帳系統 v2.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.2.2 🔒 登入修復版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.3.0 🔒 加密修復版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · 個資加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · UTF8 加密防護</p>
         </div>
       </div>
 
@@ -82,7 +82,7 @@
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
           <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未選擇對應之行程。</p>
           <button type="button" onclick="clearSystemCache()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>如果確定輸入正確，請點此「重置系統快取」後再試
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>如果確定輸入無誤，請點此「重置系統快取」
           </button>
         </div>
 
@@ -106,214 +106,4 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-slate-500 text-sm">行程應繳總費用</p>
-          <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="displayTotal">0</span></p>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p class="text-slate-500 text-sm">已收訂金/分期總計</p>
-          <p class="text-2xl font-bold text-emerald-600 mt-1">NT$ <span id="displayDepositTotal">0</span></p>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm">
-          <p class="text-amber-800 text-sm font-medium">剩餘尾款金額</p>
-          <p class="text-2xl font-bold text-amber-600 mt-1">NT$ <span id="displayBalance">0</span></p>
-        </div>
-      </div>
-
-      <!-- 多期訂金/分期收款明細專區 -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center justify-between">
-          <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細紀錄</span>
-          <span class="text-xs text-slate-400 font-normal">分期繳費狀態</span>
-        </h3>
-        
-        <div id="depositListContainer" class="space-y-3">
-          <!-- JS 動態渲染多期明細卡片 -->
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
-          <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
-        </h3>
-        <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
-          <p><span class="font-semibold text-slate-900">匯款銀行：</span> 玉山銀行 (808)</p>
-          <p><span class="font-semibold text-slate-900">戶名：</span> 樂團後援會公戶</p>
-          <p><span class="font-semibold text-slate-900">帳號：</span> 1234-567-890123</p>
-          <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 幹部管理面板 (Admin Dashboard) -->
-    <div id="adminSection" class="hidden space-y-6">
-      <div class="flex justify-between items-center bg-slate-900 text-white p-6 rounded-2xl shadow-lg">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-medium">幹部管理後台</span>
-            <span class="text-slate-400 text-xs font-mono">Build v2.2.2-fix</span>
-          </div>
-          <h2 class="text-2xl font-bold mt-2">存取 Monitor 與多期資料管理專區</h2>
-        </div>
-        <button onclick="closeAdminSection()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm">
-          退出後台
-        </button>
-      </div>
-
-      <!-- 分頁頁籤 -->
-      <div class="flex border-b border-slate-200 gap-4">
-        <button onclick="switchAdminTab('unviewed')" id="tabUnviewed" class="py-2.5 px-4 font-semibold text-indigo-600 border-b-2 border-indigo-600">
-          <i class="fa-solid fa-eye-slash mr-1"></i> 未查看團員名單
-        </button>
-        <button onclick="switchAdminTab('sync')" id="tabSync" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-700">
-          <i class="fa-solid fa-lock mr-1"></i> 資料更新專區 (JSON)
-        </button>
-        <button onclick="switchAdminTab('logs')" id="tabLogs" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-700">
-          <i class="fa-solid fa-list-check mr-1"></i> 存取 Log 紀錄
-        </button>
-      </div>
-
-      <!-- 分頁 1：未查看團員名單 -->
-      <div id="adminTabUnviewed" class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-        <div class="flex justify-between items-center">
-          <div>
-            <h3 class="font-bold text-lg text-slate-800">尚未查看/登入對帳系統之學生</h3>
-            <p class="text-sm text-slate-500">方便幹部追蹤誰還沒有確認過金額</p>
-          </div>
-          <div class="text-right">
-            <span class="text-2xl font-bold text-amber-600" id="unviewedCount">0</span>
-            <span class="text-sm text-slate-500">/ <span id="totalStudentsCount">0</span> 人未查看</span>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-100 text-slate-600 border-b">
-              <tr>
-                <th class="py-3 px-4">學生姓名</th>
-                <th class="py-3 px-4">房型</th>
-                <th class="py-3 px-4">應繳總額</th>
-                <th class="py-3 px-4">已繳期數摘要</th>
-                <th class="py-3 px-4">狀態</th>
-              </tr>
-            </thead>
-            <tbody id="unviewedTableBody" class="divide-y">
-              <!-- JS 動態渲染 -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 分頁 2：加密與同步資料 -->
-      <div id="adminTabSync" class="hidden bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-        <div class="flex justify-between items-center border-b pb-3">
-          <h3 class="font-bold text-lg text-slate-800">手動更新與加密本行程資料庫</h3>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">對帳更新時間標記</label>
-          <input type="text" id="updatedTimeInput" placeholder="例如：2026/10/12 20:00" class="w-full text-sm p-2.5 border rounded-lg mb-3">
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">JSON 資料（支援 deposits 多期陣列）</label>
-          <textarea id="importJsonInput" rows="8" class="w-full font-mono text-xs p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="貼上 JSON 資料..."></textarea>
-        </div>
-
-        <div class="flex gap-3">
-          <button onclick="applyDataUpdate()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-5 py-2.5 rounded-lg font-medium shadow transition">
-            <i class="fa-solid fa-lock mr-1.5"></i> 進行加密並儲存發布
-          </button>
-          <button onclick="resetToDefaultData()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-4 py-2.5 rounded-lg transition">
-            重設為預設內建資料
-          </button>
-        </div>
-      </div>
-
-      <!-- 分頁 3：存取 Log 紀錄 -->
-      <div id="adminTabLogs" class="hidden bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-        <div class="flex justify-between items-center">
-          <h3 class="font-bold text-lg text-slate-800">系統即時 Access Logs</h3>
-        </div>
-
-        <div class="overflow-x-auto max-h-96">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-100 text-slate-600 sticky top-0">
-              <tr>
-                <th class="py-2.5 px-4">時間</th>
-                <th class="py-2.5 px-4">行程</th>
-                <th class="py-2.5 px-4">學生姓名</th>
-                <th class="py-2.5 px-4">事件</th>
-                <th class="py-2.5 px-4">狀態</th>
-              </tr>
-            </thead>
-            <tbody id="logsTableBody" class="divide-y font-mono text-xs">
-              <!-- JS 動態渲染 -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- Footer 頁尾版本資訊 -->
-  <footer class="bg-slate-100 border-t border-slate-200 text-slate-500 text-xs py-4 text-center mt-auto">
-    <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
-      <p>© 樂團家長後援會 旅遊帳務核對系統</p>
-      <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v2.2.2-fix</strong></span>
-        <span>•</span>
-        <span>安全防護：<strong class="text-emerald-700">AES/Payload Enabled</strong></span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- 幹部登入 Modal -->
-  <div id="adminLoginModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
-      <h3 class="font-bold text-lg text-slate-800">幹部身份驗證</h3>
-      <input type="password" id="adminPassword" placeholder="請輸入管理員密碼" class="w-full px-3 py-2 border rounded-lg outline-none">
-      <div id="adminLoginError" class="hidden text-xs text-rose-500">密碼錯誤，請重新輸入。</div>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeAdminLoginModal()" class="px-4 py-2 text-sm text-slate-500">取消</button>
-        <button onclick="loginAdmin()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg">登入後台</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // 完整 53 位花蓮參團學員陣列
-    const hualienStudents = [
-      { name: "陳佑宇", birthday: ["2013/9/28", "20130928"], room: "三人房4", total: 12340, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月20日 轉帳" }] },
-      { name: "林品安", birthday: ["2013/10/5", "20131005"], room: "四人房1", total: 46028, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "巫芃緯", birthday: ["2014/7/22", "20140722"], room: "二人房1", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "10月2日 轉帳" }] },
-      { name: "賴冠勛", birthday: ["2013/5/14", "20130514"], room: "三人房5", total: 12340, deposits: [{ stage: "第一期訂金", amount: 5100, status: "已收到", note: "10月1日 刷卡" }] },
-      { name: "蔡雨霏", birthday: ["2014/5/9", "20140509"], room: "二人房2", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "張惠棋", birthday: ["2013/8/3", "20130803"], room: "二人房3", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "蕭宇辰", birthday: ["2014/3/4", "20140304"], room: "四人房2", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月30日 轉帳" }] },
-      { name: "何碩元", birthday: ["2013/5/12", "20130512"], room: "二人房4", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "10月1日 轉帳" }] },
-      { name: "林洛萱", birthday: ["2014/3/28", "20140328"], room: "四人房3", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月29日 轉帳" }] },
-      { name: "盧品妤", birthday: ["2013/12/18", "20131218"], room: "四人房3", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月22日 轉帳" }] },
-      { name: "曾上恩", birthday: ["2012/12/17", "20121217"], room: "四人房4", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月23日 轉帳" }] },
-      { name: "林尚蓉", birthday: ["2013/11/18", "20131118"], room: "四人房3", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月23日 轉帳" }] },
-      { name: "林芊妤", birthday: ["2014/6/23", "20140623"], room: "四人房3", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月23日 轉帳" }] },
-      { name: "劉宣齡", birthday: ["2014/8/28", "20140828"], room: "四人房4", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月24日 轉帳" }] },
-      { name: "莊牧錡", birthday: ["2014/2/13", "20140213"], room: "四人房2", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "10月1日 轉帳" }] },
-      { name: "程柏馨", birthday: ["2014/4/4", "20140404"], room: "二人房5", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月24日 轉帳" }] },
-      { name: "聞安娜", birthday: ["2013/11/15", "20131115"], room: "四人房5", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月22日 轉帳" }] },
-      { name: "徐沛揚", birthday: ["2012/9/21", "20120921"], room: "三人房5", total: 12340, deposits: [{ stage: "第一期訂金", amount: 20000, status: "已收到", note: "9月25日 轉帳" }] },
-      { name: "林宜甫", birthday: ["2013/5/25", "20130525"], room: "三人房5", total: 24997, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月25日 轉帳" }] },
-      { name: "楊婕霓", birthday: ["2014/5/7", "20140507"], room: "四人房5", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "10月5日 轉帳" }] },
-      { name: "陳柏劭", birthday: ["2012/9/11", "20120911"], room: "二人房18", total: 37971, deposits: [{ stage: "第一期訂金", amount: 15300, status: "已收到", note: "10月5日 刷卡" }] },
-      { name: "郭恆立", birthday: ["2014/1/2", "20140102"], room: "二人房8", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月27日 轉帳" }] },
-      { name: "張在朋", birthday: ["2012/9/19", "20120919"], room: "四人房6", total: 11507, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "陳昱安", birthday: ["2019/8/28", "20190828"], room: "二人房9", total: 25314, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "曾鈺博", birthday: ["2012/11/16", "20121116"], room: "四人房6", total: 11507, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "許品薰", birthday: ["2013/6/4", "20130604"], room: "二人房17", total: 12657, deposits: [{ stage: "第一期訂金", amount: 5100, status: "已收到", note: "10月1日 刷卡" }] },
-      { name: "劉芷希", birthday: ["2013/6/1", "20130601"], room: "二人房17", total: 12657, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "葉宥均", birthday: ["2013/7/28", "20130728"], room: "三人房1", total: 37020, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "林岳德", birthday: ["2013/1/26", "20130126"], room: "三人房2", total: 37020, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "呂采潔", birthday: ["2012/12/24", "20121224"], room: "四人房7", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5100, status: "已收到", note: "10月1日 刷卡" }] },
-      { name: "吳念祖", birthday: ["2013/3/21", "20130321"], room: "四人房6", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月29日 轉帳" }] },
-      { name: "陳艾瑪", birthday: ["2014/4/25", "20140425"], room: "二人房12", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "10月2日 轉帳" }] },
-      { name: "周正朗", birthday: ["2013/9/19", "20130919"], room: "三人房4", total: 12340, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "張柔謙", birthday:
+          <p class="text-
