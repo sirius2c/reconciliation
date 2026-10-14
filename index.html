@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.3.0</title>
+  <title>樂團旅遊對帳系統 v2.3.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.3.0 🔒 加密修復版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.3.1 🔒 穩定安全版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · UTF8 加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · 匿名隱私防護</p>
         </div>
       </div>
 
@@ -70,17 +70,17 @@
       <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
-          <input type="text" id="studentName" placeholder="例如：陳佑宇" required
+          <input type="text" id="studentName" placeholder="例如：學生A" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
-          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
+          <input type="text" id="studentBirthday" placeholder="例如：20130101 或 2013/1/1" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
-          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未選擇對應之行程。</p>
+          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
           <button type="button" onclick="clearSystemCache()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
             <i class="fa-solid fa-arrows-rotate mr-1"></i>如果確定輸入無誤，請點此「重置系統快取」
           </button>
@@ -106,4 +106,64 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-slate-500 text-sm">行程應繳總費用</p>
-          <p class="text-
+          <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="displayTotal">0</span></p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-slate-500 text-sm">已收訂金/分期總計</p>
+          <p class="text-2xl font-bold text-emerald-600 mt-1">NT$ <span id="displayDepositTotal">0</span></p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm">
+          <p class="text-amber-800 text-sm font-medium">剩餘尾款金額</p>
+          <p class="text-2xl font-bold text-amber-600 mt-1">NT$ <span id="displayBalance">0</span></p>
+        </div>
+      </div>
+
+      <!-- 多期訂金/分期收款明細專區 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center justify-between">
+          <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細紀錄</span>
+          <span class="text-xs text-slate-400 font-normal">分期繳費狀態</span>
+        </h3>
+        
+        <div id="depositListContainer" class="space-y-3">
+          <!-- JS 動態渲染多期明細卡片 -->
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+          <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
+        </h3>
+        <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
+          <p><span class="font-semibold text-slate-900">匯款銀行：</span> 玉山銀行 (808)</p>
+          <p><span class="font-semibold text-slate-900">戶名：</span> 樂團後援會公戶</p>
+          <p><span class="font-semibold text-slate-900">帳號：</span> 1234-567-890123</p>
+          <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 幹部管理面板 (Admin Dashboard) -->
+    <div id="adminSection" class="hidden space-y-6">
+      <div class="flex justify-between items-center bg-slate-900 text-white p-6 rounded-2xl shadow-lg">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-medium">幹部管理後台</span>
+            <span class="text-slate-400 text-xs font-mono">Build v2.3.1-stable</span>
+          </div>
+          <h2 class="text-2xl font-bold mt-2">存取 Monitor 與資料管理專區</h2>
+        </div>
+        <button onclick="closeAdminSection()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm">
+          退出後台
+        </button>
+      </div>
+
+      <!-- 分頁頁籤 -->
+      <div class="flex border-b border-slate-200 gap-4">
+        <button onclick="switchAdminTab('unviewed')" id="tabUnviewed" class="py-2.5 px-4 font-semibold text-indigo-600 border-b-2 border-indigo-600">
+          <i class="fa-solid fa-eye-slash mr-1"></i> 未查看團員名單
+        </button>
+        <button onclick="switchAdminTab('sync')" id="tabSync" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-700">
+          <i class="fa-solid fa-database mr-1"></i> 資料更新專區 (JSON)
+        </button>
+        <button onclick="switchAdminTab('logs')" id="tabLogs" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-
