@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.2.1</title>
+  <title>樂團旅遊對帳系統 v2.2.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,14 +19,14 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.2.1 🔒 多期對帳版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.2.2 🔒 登入修復版</span>
           </div>
           <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · 個資加密防護</p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <!-- 行程選擇器 (預設花蓮) -->
+        <!-- 行程選擇器 -->
         <div class="relative">
           <select id="tripSelector" onchange="switchTrip()" class="bg-indigo-800 text-white text-sm px-3 py-2 pr-8 rounded-lg border border-indigo-500 focus:outline-none focus:ring-2 focus:ring-white">
             <option value="hualien2027" selected>2027 寒假花蓮旅行</option>
@@ -70,17 +70,20 @@
       <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
-          <input type="text" id="studentName" placeholder="例如：王小明" required
+          <input type="text" id="studentName" placeholder="例如：陳佑宇" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
-          <input type="text" id="studentBirthday" placeholder="例如：20130101 或 2013/1/1" required
+          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
 
-        <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-2.5 rounded-lg border border-rose-200">
-          <i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未選擇對應之行程，請重新核對。
+        <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
+          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未選擇對應之行程。</p>
+          <button type="button" onclick="clearSystemCache()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>如果確定輸入正確，請點此「重置系統快取」後再試
+          </button>
         </div>
 
         <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-md transition duration-200">
@@ -146,7 +149,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-medium">幹部管理後台</span>
-            <span class="text-slate-400 text-xs font-mono">Build v2.2.1-multi-deposit</span>
+            <span class="text-slate-400 text-xs font-mono">Build v2.2.2-fix</span>
           </div>
           <h2 class="text-2xl font-bold mt-2">存取 Monitor 與多期資料管理專區</h2>
         </div>
@@ -257,7 +260,7 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v2.2.1-multi-deposit</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v2.2.2-fix</strong></span>
         <span>•</span>
         <span>安全防護：<strong class="text-emerald-700">AES/Payload Enabled</strong></span>
       </div>
@@ -313,33 +316,4 @@
       { name: "吳念祖", birthday: ["2013/3/21", "20130321"], room: "四人房6", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月29日 轉帳" }] },
       { name: "陳艾瑪", birthday: ["2014/4/25", "20140425"], room: "二人房12", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "10月2日 轉帳" }] },
       { name: "周正朗", birthday: ["2013/9/19", "20130919"], room: "三人房4", total: 12340, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "張柔謙", birthday: ["2014/2/15", "20140215"], room: "四人房4", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月30日 轉帳" }] },
-      { name: "張姮湘", birthday: ["2014/2/5", "20140205"], room: "二人房6", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "10月3日 轉帳" }] },
-      { name: "婁少瑄", birthday: ["2013/8/4", "20130804"], room: "四人房7", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月29日 轉帳" }] },
-      { name: "簡子皓", birthday: ["2013/8/16", "20130816"], room: "三人房5", total: 24997, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "盧妤菲", birthday: ["2013/12/31", "20131231"], room: "四人房5", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月29日 轉帳" }] },
-      { name: "張瑄庭", birthday: ["2014/1/17", "20140117"], room: "二人房13", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "聶宜綸", birthday: ["2013/6/25", "20130625"], room: "四人房7", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "10月5日 轉帳" }] },
-      { name: "龔子嫣", birthday: ["2012/11/22", "20121122"], room: "二人房14", total: 25314, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "連東翊", birthday: ["2014/2/12", "20140212"], room: "三人房4", total: 12340, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "施羽真", birthday: ["2013/12/13", "20131213"], room: "四人房4", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "葉奕辰", birthday: ["2012/11/20", "20121120"], room: "四人房7", total: 11507, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "陳奕宇", birthday: ["2013/9/7", "20130907"], room: "二人房10", total: 25314, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "許宸綺", birthday: ["2013/3/29", "20130329"], room: "四人房5", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月26日 轉帳" }] },
-      { name: "林睿熙", birthday: ["2014/3/26", "20140326"], room: "四人房2", total: 11507, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "未對到帳" }] },
-      { name: "王傳縉", birthday: ["2014/6/27", "20140627"], room: "四人房2", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "黃浩軒", birthday: ["2012/12/9", "20121209"], room: "二人房11", total: 25314, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "李昕展", birthday: ["2014/3/8", "20140308"], room: "四人房6", total: 11507, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9月28日 轉帳" }] },
-      { name: "戴旖宸", birthday: ["2013/9/21", "20130921"], room: "三人房3", total: 37020, deposits: [{ stage: "第一期訂金", amount: 10000, status: "已收到", note: "9/28,30 轉帳" }] },
-      { name: "路孟維", birthday: ["2012/12/22", "20121222"], room: "自行前往", total: 9482, deposits: [{ stage: "第一期訂金", amount: 2000, status: "已收到", note: "10月3日 轉帳" }] }
-    ];
-
-    const defaultTripsDB = {
-      hualien2027: {
-        title: "2027 寒假花蓮旅行",
-        lastUpdated: "2026/10/12 20:00",
-        students: hualienStudents
-      },
-      vienna2027: {
-        title: "2027 暑假維也納音樂節",
-        lastUpdated:
+      { name: "張柔謙", birthday:
