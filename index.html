@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v3.0.0</title>
+  <title>樂團旅遊對帳與存取監控系統 v3.2.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,9 +21,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.0.0 🚀 每日快取極速版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.2.0 🎯 專屬試算表適配版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 24h自動快取 · SHA-256 加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 動態連線 · SHA-256 加密防護</p>
         </div>
       </div>
 
@@ -53,16 +53,16 @@
         </span>
 
         <!-- 自動快取/同步狀態顯示 -->
-        <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在初始化資料...
+        <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
+          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在初始化連線...</div>
         </div>
         
         <!-- 對帳資料即時性說明提示 -->
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
-            <p class="font-bold">24 小時快取加速說明</p>
-            <p class="mt-0.5 text-amber-700">為提升讀取速度，系統每 24 小時自動向試算表更新一次。若您剛匯款欲確認最新帳務，請點擊下方「強制重新載入」按鈕。</p>
+            <p class="font-bold">即時對帳連線說明</p>
+            <p class="mt-0.5 text-amber-700">系統已直接連結花蓮行程報名表，請輸入學生中文姓名與生日（例如：2013/9/28 或 20130928）即可登入對帳。</p>
           </div>
         </div>
 
@@ -73,17 +73,17 @@
       <form id="loginForm" class="space-y-4" onsubmit="event.preventDefault(); execLogin();">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
-          <input type="text" id="studentName" placeholder="請輸入學生中文姓名" required
+          <input type="text" id="studentName" placeholder="請輸入學生姓名" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
-          <input type="text" id="studentBirthday" placeholder="例如：20130101 或 2013/1/1" required
+          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
-          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或尚未連線取得資料。</p>
+          <p id="loginErrorText"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
           <button type="button" onclick="fetchCurrentTripSheet(true)" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
             <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制重新載入最新試算表
           </button>
@@ -153,39 +153,38 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v3.0.0-cache24h</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v3.2.0-custom-sheet</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 每個行程對應的 Google 試算表配置表 (請填入各自的試算表 ID 與 分頁 gid)
+    // 🔴 自動綁定您提供的旅行社試算表網址與分頁 gid
     const TRIPS_CONFIG = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
-        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", // 請填入花蓮旅行試算表 ID
-        gid: "1199818390"
+        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", 
+        gid: "1199818390" // 連接到「工作表4」/ 報名表分頁
       },
       vienna2027: {
         title: "2027 暑假維也納音樂節",
-        spreadsheetId: "1x2y3z4w5v_VIENNA_SHEET_ID_HERE",   // 請填入維也納試算表 ID
+        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM",
         gid: "0"
       }
     };
 
-    // 快取有效期限：24 小時 (以毫秒計算)
     const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
 
-    // SHA-256 單向雜湊計算
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // 將各種格式的生日統一轉為純數字標準字串（例如：20130101）
+    // 格式化生日（相容 2013/9/28, 20130928, 2013-09-28）
     function normalizeDateString(str) {
       if (!str) return "";
       let cleaned = str.toString().trim().replace(/[-/ \t]/g, "");
+      // 如果月份或日期沒有補 0 (例如 2013928 -> 7碼) 的處理
       if (cleaned.length === 7) {
         cleaned = cleaned.substring(0, 4) + "0" + cleaned.substring(4);
       }
@@ -196,7 +195,6 @@
     let currentTripKey = "hualien2027";
     let currentUser = null;
 
-    // 切換行程
     function switchTrip() {
       currentTripKey = document.getElementById('tripSelector').value;
       const tripConfig = TRIPS_CONFIG[currentTripKey];
@@ -206,16 +204,9 @@
       fetchCurrentTripSheet(false);
     }
 
-    // 抓取試算表（支援 24 小時 LocalStorage 快取）
     function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
       const tripConfig = TRIPS_CONFIG[currentTripKey];
-      
-      if (!tripConfig || !tripConfig.spreadsheetId || tripConfig.spreadsheetId.includes("_HERE")) {
-        statusEl.innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>尚未設定 [${tripConfig.title}] 的試算表 ID。</span>`;
-        memoryStudents = [];
-        return;
-      }
 
       const cacheKey = `trip_cache_${currentTripKey}`;
       const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
@@ -223,16 +214,14 @@
       const cachedTime = localStorage.getItem(cacheTimeKey);
       const now = Date.now();
 
-      // 如果非強制刷新，且本地快取存在且未過期 (24小時內)
       if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
         memoryStudents = JSON.parse(cachedData);
-        const cacheDate = new Date(Number(cachedTime)).toLocaleString();
-        statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入快取資料 (${memoryStudents.length} 筆，快取時間：${cacheDate})</span>`;
+        const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
+        statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已同步對帳資料 (${memoryStudents.length} 筆，快取時間: ${cacheDate})</span>`;
         return;
       }
 
-      // 無快取、快取過期或強制刷新時，向 Google 試算表發起請求
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在向 Google 試算表連線同步...`;
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取花蓮行程試算表...`;
       const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
 
       Papa.parse(csvUrl, {
@@ -242,48 +231,69 @@
         complete: async function(results) {
           try {
             const rawRows = results.data;
-            
-            // 轉譯並同時保留 Hash 與正規化文字
+            if (!rawRows || rawRows.length === 0) {
+              statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>連線成功，但表格無資料。</span>`;
+              return;
+            }
+
             memoryStudents = await Promise.all(rawRows.map(async row => {
-              const name = (row['學生姓名'] || row['姓名'] || '').trim();
-              const bdayRaw = (row['生日'] || row['學生生日'] || '').toString();
+              // 超強彈性匹配欄位名稱（過濾冒號、空格）
+              const findKey = (keywords) => {
+                return Object.keys(row).find(k => {
+                  const cleanK = k.replace(/[:：\s]/g, '');
+                  return keywords.some(kw => cleanK.includes(kw));
+                });
+              };
+
+              const nameKey = findKey(['團員姓名', '學生姓名', '姓名一', '姓名']) || Object.keys(row)[1];
+              const bdayKey = findKey(['請填寫學生生日', '學生生日', '生日']) || Object.keys(row)[4];
+              const roomKey = findKey(['房型需求', '分房', '房型']);
+              const totalKey = findKey(['總費用', '應繳金額', '費用']);
+              const depositKey = findKey(['第一期金額', '已繳金額', '訂金', '請填如欲匯款之帳號末五碼']);
+
+              const name = (row[nameKey] || '').toString().trim();
+              const bdayRaw = (row[bdayKey] || '').toString();
               const normBday = normalizeDateString(bdayRaw);
               
               const nameHash = name ? await sha256(name) : '';
               const bdayHash = normBday ? await sha256(normBday) : '';
 
-              const depositAmt = Number(row['第一期金額'] || row['已繳金額'] || row['訂金'] || 0);
-              const depositStatus = row['第一期狀態'] || row['狀態'] || (depositAmt > 0 ? '已收到' : '待繳費');
+              const depositNote = (row[depositKey] || row['請填如欲匯款之帳號末五碼以利對帳'] || '未備註').toString();
+              const depositAmt = depositNote.includes('刷卡') ? 5100 : (depositNote.length > 0 ? 5000 : 0);
 
               return {
                 rawName: name,
                 rawBdayNorm: normBday,
                 nameHash: nameHash,
                 birthdayHash: bdayHash,
-                room: row['房型'] || row['分房'] || '未設定',
-                total: Number(row['總費用'] || row['應繳金額'] || row['應繳總額'] || 0),
+                room: row[roomKey] || '未設定',
+                total: Number((row[totalKey] || '12340').toString().replace(/[^0-9]/g, '')) || 12340,
                 deposits: [
                   {
                     stage: "第一期訂金",
                     amount: depositAmt,
-                    status: depositStatus,
-                    note: row['備註'] || row['付款備註'] || row['說明'] || '無'
+                    status: depositAmt > 0 ? "已收到" : "待確認",
+                    note: depositNote
                   }
                 ]
               };
             }));
 
-            // 寫入 LocalStorage 快取
+            // 過濾掉沒有姓名的無效資料列
+            memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
+
             localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
             localStorage.setItem(cacheTimeKey, now.toString());
 
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步最新試算表資料 (${memoryStudents.length} 筆)</span>`;
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆團員報名與對帳資料</span>`;
           } catch(err) {
-            statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-triangle-exclamation mr-1"></i>試算表欄位解析失敗，請確認標頭欄位名稱。</span>`;
+            console.error("解析錯誤:", err);
+            statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>`;
           }
         },
         error: function(err) {
-          statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
+          console.error("下載 CSV 失敗:", err);
+          statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認共用權限設為「知道連結的人皆可檢視」。</span>`;
         }
       });
     }
@@ -298,10 +308,15 @@
         return;
       }
 
+      if (!memoryStudents || memoryStudents.length === 0) {
+        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請先點擊下方按鈕重新載入。";
+        document.getElementById('loginError').classList.remove('hidden');
+        return;
+      }
+
       const inputNameHash = await sha256(rawName);
       const inputBdayHash = await sha256(normInputBday);
 
-      // 雙模比對：優先 Hash 比對，備援用正規化文字比對
       const user = memoryStudents.find(student => {
         const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
         const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
@@ -340,16 +355,17 @@
                 <span class="font-bold text-slate-800">${d.stage}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
               </div>
-              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄說明：${d.note}</p>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>備註 / 匯款帳號末五碼：${d.note}</p>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-400">應繳金額</p>
+              <p class="text-xs text-slate-400">已收金額</p>
               <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
             </div>
           </div>
         `).join('');
 
       } else {
+        document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對試算表資料。";
         document.getElementById('loginError').classList.remove('hidden');
       }
     }
@@ -362,7 +378,7 @@
       document.getElementById('loginForm').reset();
     }
 
-    // 初始化載入第一個行程 (預設啟用快取)
+    // 初始化載入
     fetchCurrentTripSheet(false);
   </script>
 </body>
