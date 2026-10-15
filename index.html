@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v4.8.0</title>
+  <title>中正弦樂團旅遊對帳系統 v5.1.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800 flex flex-col justify-between">
 
@@ -20,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.8.0</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.1.1</span>
           </div>
-          <p class="hidden sm:block text-indigo-200 text-xs"></p>
+          <p class="hidden sm:block text-indigo-200 text-xs">家長對帳 · GAS API 雲端整合 · 自動寫回對帳 Log</p>
         </div>
       </div>
 
@@ -56,7 +55,7 @@
 
         <!-- 自動連線狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1 min-h-[32px]">
-          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取試算表資料...</div>
+          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在透過 GAS 雲端連線讀取對帳資料...</div>
         </div>
         
         <div class="mt-3 bg-indigo-50/60 border border-indigo-100 text-indigo-900 rounded-xl p-3 text-xs text-left flex items-start gap-2 shadow-sm">
@@ -86,7 +85,7 @@
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
           <p id="loginErrorText"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
           <button type="button" onclick="fetchCurrentTripSheet(true)" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制重新連線
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制重新向 GAS 同步
           </button>
         </div>
 
@@ -130,6 +129,7 @@
         <div id="depositListContainer" class="space-y-3"></div>
       </div>
 
+      <!-- 銀行資訊區塊 -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
           <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
@@ -165,7 +165,7 @@
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
             <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
-            <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空 Log</button>
+            <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空前端 Log</button>
           </h3>
           <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y"></div>
         </div>
@@ -224,7 +224,7 @@
         <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
         <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
       </div>
-      <input type="password" id="adminPasswordInput" placeholder="密碼請洽管理員" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
       <div class="flex gap-2">
         <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
         <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
@@ -236,27 +236,27 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.8.0-clean-room-name</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.1.1-gas-ready</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
+    // 🔴 您的實體 GAS Web App 部署網址
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbykQY82uldX3_O9DWqgY7lnthJRZ2Dwa_kpFfgI3ItXawttb1RrKhwOxbPm5COvALtL/exec";
+
     const TRIPS_CONFIG = {
-      hualien2027: {
-        title: "2027 寒假花蓮旅行",
-        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", 
-        gid: "1199818390"
-      },
-      vienna2027: {
-        title: "2027 暑假維也納音樂節",
-        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM",
-        gid: "0"
-      }
+      hualien2027: { title: "2027 寒假花蓮旅行" },
+      vienna2027: { title: "2027 暑假維也納音樂節" }
     };
 
     const ADMIN_PASSWORD = "admin123";
     const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
+
+    function cleanRoomName(roomStr) {
+      if (!roomStr) return '未設定';
+      return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
+    }
 
     function isFamilyMemberName(name) {
       if (!name) return true;
@@ -328,14 +328,13 @@
         let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
         let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
 
-        // 🔴 自動消除房型名稱末尾的數字 (例如 "二人房3" -> "二人房")
-        room = room.replace(/[0-9０-９]+$/g, '').trim();
+        room = cleanRoomName(room);
 
         if (name) lastStudentName = name; else name = lastStudentName;
         if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
         if (room) lastRoom = room; else room = lastRoom;
         
-        let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
+        let totalCost = Number(totalStr.toString().replace(/[^0-9]/g, ''));
         if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
 
         const normBday = normalizeDateString(bdayRaw);
@@ -395,42 +394,23 @@
 
       if (memoryStudents.length === 0) return false;
 
-      const cacheKey = `trip_cache_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_1_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_1_${currentTripKey}`;
       localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
       localStorage.setItem(cacheTimeKey, Date.now().toString());
 
       const statusEl = document.getElementById('syncStatus');
-      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
+      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功從 GAS 雲端同步 ${memoryStudents.length} 筆對帳資料</span>`;
       
       if (isAdminMode) renderAdminDashboard();
       return true;
     }
 
-    async function fetchWithTimeout(url, timeoutMs = 4000) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-        clearTimeout(timer);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const text = await response.text();
-        if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html") || text.includes("google.com/service/login")) {
-          throw new Error("抓取到 Google 登入驗證頁面");
-        }
-        return text;
-      } catch (err) {
-        clearTimeout(timer);
-        throw err;
-      }
-    }
-
     async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
-      const tripConfig = TRIPS_CONFIG[currentTripKey];
 
-      const cacheKey = `trip_cache_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_1_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_1_${currentTripKey}`;
       const cachedData = localStorage.getItem(cacheKey);
       const cachedTime = localStorage.getItem(cacheTimeKey);
       const now = Date.now();
@@ -450,62 +430,59 @@
         }
       }
 
-      const rawExportUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/export?format=csv&gid=${tripConfig.gid || 0}&_t=${now}`;
-      const gvizUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}&_t=${now}`;
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
 
-      const candidateUrls = [
-        { name: "Google 匯出通道", url: rawExportUrl },
-        { name: "Google Viz 通道", url: gvizUrl },
-        { name: "AllOrigins 備援代理", url: `https://api.allorigins.win/raw?url=${encodeURIComponent(rawExportUrl)}` },
-        { name: "CORSProxy 備援代理", url: `https://corsproxy.io/?${encodeURIComponent(rawExportUrl)}` }
-      ];
-
-      for (let i = 0; i < candidateUrls.length; i++) {
-        const item = candidateUrls[i];
-        statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取資料 (${item.name})...`;
-        try {
-          const csvText = await fetchWithTimeout(item.url, 4000);
-          const results = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-          if (results.data && results.data.length > 0) {
-            const success = await processRawRows(results.data);
-            if (success) return;
-          }
-        } catch (e) {
-          console.warn(`${item.name} 失敗:`, e);
+      try {
+        const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&_t=${now}`;
+        const res = await fetch(fetchUrl);
+        if (!res.ok) throw new Error("GAS API 回應異常");
+        
+        const resultJson = await res.json();
+        if (resultJson.status === "success" && Array.isArray(resultJson.data)) {
+          await processRawRows(resultJson.data);
+        } else {
+          throw new Error(resultJson.message || "GAS 回傳資料格式有誤");
         }
-      }
-
-      const directTestUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
-
-      statusEl.innerHTML = `
-        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs text-left space-y-2 w-full shadow-sm">
-          <p class="font-bold flex items-center gap-1.5 text-rose-700">
-            <i class="fa-solid fa-circle-exclamation text-base"></i> 無法讀取 Google 試算表資料
-          </p>
-          <p class="text-[11px] text-rose-600 leading-relaxed">
-            所有通道均連線失敗。請按下方按鈕測試試算表權限，若點擊後跳出 Google 登入畫面，表示試算表權限尚未設為「開放公開檢視」。
-          </p>
-          <div class="flex flex-wrap gap-2 pt-1">
-            <a href="${directTestUrl}" target="_blank" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition text-xs inline-flex items-center gap-1">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> 點此一鍵測試 Google 試算表權限
-            </a>
-            <button onclick="fetchCurrentTripSheet(true)" class="bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg hover:bg-slate-300 transition text-xs">
-              <i class="fa-solid fa-rotate mr-1"></i>重新連線
+      } catch (err) {
+        console.error("GAS 連線失敗:", err);
+        statusEl.innerHTML = `
+          <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-center space-y-1 w-full">
+            <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>無法連線至 GAS API</p>
+            <p class="text-[10px] text-rose-600">請確認 GAS 部署權限是否開啟為「所有人 (Anyone)」</p>
+            <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs mt-1">
+              <i class="fa-solid fa-rotate mr-1"></i>重試連線
             </button>
           </div>
-        </div>
-      `;
+        `;
+      }
     }
 
     function recordAccessLog(studentName) {
+      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
+
       const logKey = `access_log_${currentTripKey}`;
       let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
-      
       logs.unshift({ name: studentName, time: nowStr });
       if (logs.length > 100) logs = logs.slice(0, 100);
-
       localStorage.setItem(logKey, JSON.stringify(logs));
+
+      try {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            studentName: studentName,
+            tripTitle: TRIPS_CONFIG[currentTripKey].title,
+            userAgent: navigator.userAgent
+          })
+        }).then(r => r.json()).then(data => {
+          console.log("Log 成功寫回 Google 試算表:", data);
+        }).catch(err => {
+          console.warn("寫回 Log 失敗:", err);
+        });
+      } catch(e) {
+        console.warn("發送 Log 請求失敗", e);
+      }
     }
 
     async function execLogin() {
@@ -546,7 +523,7 @@
 
         document.getElementById('userTripTag').innerText = tripConfig.title;
         document.getElementById('displayName').innerText = rawName;
-        document.getElementById('displayRoom').innerText = user.room;
+        document.getElementById('displayRoom').innerText = cleanRoomName(user.room);
         document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
 
         let paidTotal = 0;
@@ -629,134 +606,3 @@
     }
 
     function renderAccessLogs() {
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const container = document.getElementById('accessLogList');
-
-      if (logs.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
-        return;
-      }
-
-      container.innerHTML = logs.map(l => `
-        <div class="py-1.5 flex justify-between items-center">
-          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
-          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
-        </div>
-      `).join('');
-    }
-
-    function clearAccessLogs() {
-      if (confirm("確定要清空家長存取 Log 紀錄嗎？")) {
-        localStorage.removeItem(`access_log_${currentTripKey}`);
-        renderAccessLogs();
-        renderUnviewedStudents();
-      }
-    }
-
-    let currentUnviewedNames = [];
-    function renderUnviewedStudents() {
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const viewedNames = new Set(logs.map(l => l.name));
-
-      const studentOnlyNames = memoryStudents
-        .filter(s => !isFamilyMemberName(s.rawName))
-        .map(s => s.rawName);
-
-      currentUnviewedNames = Array.from(new Set(studentOnlyNames)).filter(name => !viewedNames.has(name));
-
-      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
-      const container = document.getElementById('unviewedStudentList');
-
-      if (currentUnviewedNames.length === 0) {
-        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團學生家長皆已進入系統查看過帳務。</span>`;
-        return;
-      }
-
-      container.innerHTML = currentUnviewedNames.map(name => `
-        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
-          ${name}
-        </span>
-      `).join('');
-    }
-
-    function copyUnviewedList() {
-      if (currentUnviewedNames.length === 0) {
-        alert("目前全團家長皆已完成查看，無需發送提醒！");
-        return;
-      }
-
-      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
-      navigator.clipboard.writeText(text).then(() => {
-        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
-      });
-    }
-
-    function renderAdminStudentTable() {
-      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
-      const tbody = document.getElementById('adminStudentTbody');
-      
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const viewedNames = new Set(logs.map(l => l.name));
-
-      const cleanStudents = memoryStudents.filter(s => !isFamilyMemberName(s.rawName));
-      const groupedMap = new Map();
-
-      cleanStudents.forEach(s => {
-        if (!groupedMap.has(s.rawName)) {
-          groupedMap.set(s.rawName, {
-            rawName: s.rawName,
-            rawBdayNorm: s.rawBdayNorm,
-            room: s.room,
-            total: s.total,
-            paid: 0
-          });
-        }
-
-        const target = groupedMap.get(s.rawName);
-        if (!target.rawBdayNorm && s.rawBdayNorm) target.rawBdayNorm = s.rawBdayNorm;
-        if ((!target.room || target.room === '未設定') && s.room) target.room = s.room;
-        if (target.total === 0 && s.total > 0) target.total = s.total;
-
-        (s.deposits || []).forEach(d => {
-          if (d.status === "已收到") target.paid += d.amount;
-        });
-      });
-
-      let groupedList = Array.from(groupedMap.values());
-
-      if (search) {
-        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
-      }
-
-      document.getElementById('adminTotalCount').innerText = groupedList.length;
-
-      tbody.innerHTML = groupedList.map(s => {
-        const balance = Math.max(0, s.total - s.paid);
-        const hasViewed = viewedNames.has(s.rawName);
-
-        return `
-          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-            <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
-            <td class="p-3">
-              ${hasViewed 
-                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
-                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
-            </td>
-            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
-            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${s.room}</span></td>
-            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
-            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
-            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    // 初始化載入
-    fetchCurrentTripSheet(false);
-  </script>
-</body>
-</html>
