@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.7.0</title>
+  <title>樂團旅遊對帳系統 v2.8.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,9 +21,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.7.0 ⚡ 多行程獨立試算表連動</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.8.0 🔒 匿名防護修正版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 多試算表動態切換 · SHA-256 記憶體加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 動態連線 · SHA-256 記憶體加密防護</p>
         </div>
       </div>
 
@@ -54,7 +54,7 @@
 
         <!-- 自動同步狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在讀取試算表資料...
+          <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取試算表資料...
         </div>
         
         <!-- 對帳資料更新時間警告提示 -->
@@ -73,12 +73,12 @@
       <form id="loginForm" class="space-y-4" onsubmit="event.preventDefault(); execLogin();">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
-          <input type="text" id="studentName" placeholder="例如：陳佑宇" required
+          <input type="text" id="studentName" placeholder="請輸入學生中文姓名" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生生日 (西元年月日)</label>
-          <input type="text" id="studentBirthday" placeholder="例如：20130928 或 2013/9/28" required
+          <input type="text" id="studentBirthday" placeholder="例如：20130101 或 2013/1/1" required
             class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
         </div>
 
@@ -153,25 +153,25 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v2.7.0-multi-sheets</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v2.8.0-clean</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 每個行程對應的 Google 試算表配置表 (請貼上各自的試算表 ID) 
-  const TRIPS_CONFIG = {
-    hualien2027: {
-    title: "2027 寒假花蓮旅行",
-    spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM",
-    gid: "1199818390" // 填入花蓮分頁網址末端 gid= 後面的數字 (若是第一個 Tab 通常為 0)
-  },
-  vienna2027: {
-    title: "2027 暑假維也納音樂節",
-    spreadsheetId: "1ZjNX0AyykS-vXI5KmTJGT_Vghu0p0_t3Lk4Um_EhyjY", // 若同一個試算表不同 Tab，這裡填一樣的 ID 即可
-    gid: "123456789" // 填入維也納分頁網址末端 gid= 後面的數字
-  }
-};
+    // 🔴 每個行程對應的 Google 試算表配置表 (請貼上各自的試算表 ID 與 分頁 gid)
+    const TRIPS_CONFIG = {
+      hualien2027: {
+        title: "2027 寒假花蓮旅行",
+        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", // 請填入花蓮旅行試算表 ID
+        gid: "1199818390"
+      },
+      vienna2027: {
+        title: "2027 暑假維也納音樂節",
+        spreadsheetId: "1x2y3z4w5v_VIENNA_SHEET_ID_HERE",   // 請填入維也納試算表 ID
+        gid: "0"
+      }
+    };
 
     // SHA-256 單向雜湊計算
     async function sha256(str) {
@@ -203,13 +203,13 @@
       const tripConfig = TRIPS_CONFIG[currentTripKey];
       
       if (!tripConfig || !tripConfig.spreadsheetId || tripConfig.spreadsheetId.includes("_HERE")) {
-        statusEl.innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>尚未設定 ${tripConfig.title} 的試算表 ID。</span>`;
+        statusEl.innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>尚未設定 [${tripConfig.title}] 的試算表 ID。</span>`;
         memoryStudents = [];
         return;
       }
 
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在載入 [${tripConfig.title}] 試算表資料...`;
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv`;
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
 
       Papa.parse(csvUrl, {
         download: true,
@@ -219,7 +219,7 @@
           try {
             const rawRows = results.data;
             
-            // 轉譯並加密儲存在記憶體中
+            // 轉譯並即時轉為 Hash 加密儲存在記憶體中（完全不儲存明文姓名）
             memoryStudents = await Promise.all(rawRows.map(async row => {
               const name = (row['學生姓名'] || row['姓名'] || '').trim();
               const bdayRaw = (row['生日'] || row['學生生日'] || '').toString();
