@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v3.2.0</title>
+  <title>樂團旅遊對帳系統 v3.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,9 +21,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.2.0 🎯 專屬試算表適配版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.3.0 ⚡ 多期動態對帳版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 動態連線 · SHA-256 加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 標準欄位對接 · 多期自動計算</p>
         </div>
       </div>
 
@@ -54,15 +54,15 @@
 
         <!-- 自動快取/同步狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
-          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在初始化連線...</div>
+          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取試算表資料...</div>
         </div>
         
         <!-- 對帳資料即時性說明提示 -->
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
-            <p class="font-bold">即時對帳連線說明</p>
-            <p class="mt-0.5 text-amber-700">系統已直接連結花蓮行程報名表，請輸入學生中文姓名與生日（例如：2013/9/28 或 20130928）即可登入對帳。</p>
+            <p class="font-bold">標準欄位對接提示</p>
+            <p class="mt-0.5 text-amber-700">請輸入學生姓名與生日進行登入對帳。</p>
           </div>
         </div>
 
@@ -153,18 +153,18 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v3.2.0-custom-sheet</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v3.3.0-multi-stage</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 自動綁定您提供的旅行社試算表網址與分頁 gid
+    // 🔴 自動連動您的試算表設定 (可在此調整 gid 指向特定 Tab)
     const TRIPS_CONFIG = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
         spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", 
-        gid: "1199818390" // 連接到「工作表4」/ 報名表分頁
+        gid: "1199818390" // 連接到「收款明細-latest」分頁
       },
       vienna2027: {
         title: "2027 暑假維也納音樂節",
@@ -180,11 +180,9 @@
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // 格式化生日（相容 2013/9/28, 20130928, 2013-09-28）
     function normalizeDateString(str) {
       if (!str) return "";
       let cleaned = str.toString().trim().replace(/[-/ \t]/g, "");
-      // 如果月份或日期沒有補 0 (例如 2013928 -> 7碼) 的處理
       if (cleaned.length === 7) {
         cleaned = cleaned.substring(0, 4) + "0" + cleaned.substring(4);
       }
@@ -217,11 +215,11 @@
       if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
         memoryStudents = JSON.parse(cachedData);
         const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
-        statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已同步對帳資料 (${memoryStudents.length} 筆，快取時間: ${cacheDate})</span>`;
+        statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
         return;
       }
 
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取花蓮行程試算表...`;
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取 Google 試算表...`;
       const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
 
       Papa.parse(csvUrl, {
@@ -237,55 +235,72 @@
             }
 
             memoryStudents = await Promise.all(rawRows.map(async row => {
-              // 超強彈性匹配欄位名稱（過濾冒號、空格）
-              const findKey = (keywords) => {
-                return Object.keys(row).find(k => {
-                  const cleanK = k.replace(/[:：\s]/g, '');
-                  return keywords.some(kw => cleanK.includes(kw));
-                });
-              };
-
-              const nameKey = findKey(['團員姓名', '學生姓名', '姓名一', '姓名']) || Object.keys(row)[1];
-              const bdayKey = findKey(['請填寫學生生日', '學生生日', '生日']) || Object.keys(row)[4];
-              const roomKey = findKey(['房型需求', '分房', '房型']);
-              const totalKey = findKey(['總費用', '應繳金額', '費用']);
-              const depositKey = findKey(['第一期金額', '已繳金額', '訂金', '請填如欲匯款之帳號末五碼']);
-
-              const name = (row[nameKey] || '').toString().trim();
-              const bdayRaw = (row[bdayKey] || '').toString();
+              // 1. 抓取基本屬性
+              const name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+              const bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString();
               const normBday = normalizeDateString(bdayRaw);
               
               const nameHash = name ? await sha256(name) : '';
               const bdayHash = normBday ? await sha256(normBday) : '';
 
-              const depositNote = (row[depositKey] || row['請填如欲匯款之帳號末五碼以利對帳'] || '未備註').toString();
-              const depositAmt = depositNote.includes('刷卡') ? 5100 : (depositNote.length > 0 ? 5000 : 0);
+              const room = row['分房(新)'] || row['分房'] || row['房型'] || '未設定';
+              const totalCost = Number((row['總費用'] || row['費用(個人)'] || row['費用'] || '0').toString().replace(/[^0-9]/g, '')) || 0;
+
+              // 2. 動態掃描多期繳費資訊 (如: 第一期金額, 第二期金額...)
+              const deposits = [];
+              const allKeys = Object.keys(row);
+
+              // 尋找所有帶有 "金額" 或 "期" 的動態欄位
+              allKeys.forEach(key => {
+                if (key.includes('金額') || (key.includes('第一期') && !key.includes('時間') && !key.includes('方式'))) {
+                  const amtVal = Number((row[key] || '0').toString().replace(/[^0-9]/g, ''));
+                  if (amtVal > 0 || key.includes('第一期')) {
+                    // 尋找對應的匯款時間與方式標題
+                    const stageName = key.replace(/金額|匯款/g, '').trim() || "第一期金額";
+                    const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
+                    const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+
+                    const timeVal = timeKey ? row[timeKey] : '';
+                    const methodVal = methodKey ? row[methodKey] : '';
+
+                    deposits.push({
+                      stage: stageName,
+                      amount: amtVal,
+                      status: amtVal > 0 ? "已收到" : "待繳費",
+                      note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
+                    });
+                  }
+                }
+              });
+
+              // 防呆 fallback
+              if (deposits.length === 0) {
+                deposits.push({
+                  stage: "第一期金額",
+                  amount: 0,
+                  status: "待繳費",
+                  note: "暫無紀錄"
+                });
+              }
 
               return {
                 rawName: name,
                 rawBdayNorm: normBday,
                 nameHash: nameHash,
                 birthdayHash: bdayHash,
-                room: row[roomKey] || '未設定',
-                total: Number((row[totalKey] || '12340').toString().replace(/[^0-9]/g, '')) || 12340,
-                deposits: [
-                  {
-                    stage: "第一期訂金",
-                    amount: depositAmt,
-                    status: depositAmt > 0 ? "已收到" : "待確認",
-                    note: depositNote
-                  }
-                ]
+                room: room,
+                total: totalCost,
+                deposits: deposits
               };
             }));
 
-            // 過濾掉沒有姓名的無效資料列
+            // 過濾掉沒有姓名的無效資料
             memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
 
             localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
             localStorage.setItem(cacheTimeKey, now.toString());
 
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆團員報名與對帳資料</span>`;
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
           } catch(err) {
             console.error("解析錯誤:", err);
             statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>`;
@@ -293,7 +308,7 @@
         },
         error: function(err) {
           console.error("下載 CSV 失敗:", err);
-          statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認共用權限設為「知道連結的人皆可檢視」。</span>`;
+          statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
         }
       });
     }
@@ -355,10 +370,10 @@
                 <span class="font-bold text-slate-800">${d.stage}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
               </div>
-              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>備註 / 匯款帳號末五碼：${d.note}</p>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-400">已收金額</p>
+              <p class="text-xs text-slate-400">金額</p>
               <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
             </div>
           </div>
