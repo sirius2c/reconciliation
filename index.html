@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZZJHS樂團旅遊對帳系統 v4.0.0</title>
+  <title>樂團旅遊對帳與存取監控系統 v4.1.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -19,10 +19,10 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-xl font-bold leading-tight">ZZJHS樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.0.0</span>
+            <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.1.0 🏠 學員/房間歸納歸戶版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 幹部存取紀錄追蹤 · 按學生/房間單位歸納後台</p>
         </div>
       </div>
 
@@ -148,7 +148,7 @@
         <div>
           <span class="bg-amber-500 text-slate-900 font-bold text-xs px-2.5 py-1 rounded">幹部管理模式</span>
           <h2 class="text-2xl font-bold mt-2">樂團財務與存取監控後台</h2>
-          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 管理試算表對接</p>
+          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 歸納學員對帳總覽</p>
         </div>
         <div class="flex gap-2">
           <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
@@ -187,12 +187,15 @@
         </div>
       </div>
 
-      <!-- 全團學員帳務清單總覽 -->
+      <!-- 全團學員帳務清單總覽 (以學員/房間為單位) -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
-          <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態總覽 (<span id="adminTotalCount">0</span> 筆)
-          </h3>
+          <div>
+            <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態總覽 (<span id="adminTotalCount">0</span> 名學員)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">已自動將同學生名下的家屬列與同房間列歸納合併展示</p>
+          </div>
           <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
             class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
@@ -204,14 +207,14 @@
                 <th class="p-3">學生姓名</th>
                 <th class="p-3">對帳狀態</th>
                 <th class="p-3">生日 (換算)</th>
-                <th class="p-3">分房</th>
+                <th class="p-3">房型/房間</th>
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">已繳總額</th>
                 <th class="p-3">剩餘尾款</th>
               </tr>
             </thead>
             <tbody id="adminStudentTbody" class="divide-y divide-slate-100">
-              <!-- JS 動態渲染全團列表 -->
+              <!-- JS 動態渲染歸納後的列表 -->
             </tbody>
           </table>
         </div>
@@ -230,7 +233,7 @@
         <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
         <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
       </div>
-      <input type="password" id="adminPasswordInput" placeholder="預設密碼請洽管理員" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
       <div class="flex gap-2">
         <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
         <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
@@ -242,7 +245,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.0.0-access-log</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.1.0-student-grouped</strong></span>
       </div>
     </div>
   </footer>
@@ -442,7 +445,7 @@
             localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
             localStorage.setItem(cacheTimeKey, now.toString());
 
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆資料</span>`;
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳列數據</span>`;
             
             if (isAdminMode) renderAdminDashboard();
           } catch(err) {
@@ -459,20 +462,12 @@
       });
     }
 
-    // 🔴 記錄家長登入存取紀錄 Log
     function recordAccessLog(studentName) {
       const logKey = `access_log_${currentTripKey}`;
       let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      
       const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
       
-      // 新增日誌
-      logs.unshift({
-        name: studentName,
-        time: nowStr
-      });
-
-      // 最多保存 100 筆 Log
+      logs.unshift({ name: studentName, time: nowStr });
       if (logs.length > 100) logs = logs.slice(0, 100);
 
       localStorage.setItem(logKey, JSON.stringify(logs));
@@ -507,7 +502,6 @@
         currentUser = user;
         const tripConfig = TRIPS_CONFIG[currentTripKey];
         
-        // 寫入登入紀錄 Log
         recordAccessLog(rawName);
 
         document.getElementById('loginError').classList.add('hidden');
@@ -561,7 +555,6 @@
       document.getElementById('loginForm').reset();
     }
 
-    // 🔴 幹部管理面板控制 Logic
     function openAdminModal() {
       document.getElementById('adminModal').classList.remove('hidden');
       document.getElementById('adminPasswordInput').value = "";
@@ -594,14 +587,12 @@
       document.getElementById('loginSection').classList.remove('hidden');
     }
 
-    // 渲染幹部後台四大功能（包含 Log、未查看名單）
     function renderAdminDashboard() {
       renderAccessLogs();
       renderUnviewedStudents();
       renderAdminStudentTable();
     }
 
-    // 1. 渲染家長存取紀錄 Log
     function renderAccessLogs() {
       const logKey = `access_log_${currentTripKey}`;
       const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
@@ -628,7 +619,6 @@
       }
     }
 
-    // 2. 比對並渲染未查看團員名單
     let currentUnviewedNames = [];
     function renderUnviewedStudents() {
       const logKey = `access_log_${currentTripKey}`;
@@ -653,7 +643,6 @@
       `).join('');
     }
 
-    // 複製提醒文字至剪貼簿
     function copyUnviewedList() {
       if (currentUnviewedNames.length === 0) {
         alert("目前全團家長皆已完成查看，無需發送提醒！");
@@ -666,7 +655,7 @@
       });
     }
 
-    // 3. 渲染全團總覽表格
+    // 🔴 3. 幹部全團總覽（按「學生/房間」歸納合併算法）
     function renderAdminStudentTable() {
       const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
       const tbody = document.getElementById('adminStudentTbody');
@@ -675,17 +664,42 @@
       const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
       const viewedNames = new Set(logs.map(l => l.name));
 
-      let filtered = memoryStudents;
+      // 按學生姓名 Group By 歸納合并
+      const groupedMap = new Map();
+
+      memoryStudents.forEach(s => {
+        if (!groupedMap.has(s.rawName)) {
+          groupedMap.set(s.rawName, {
+            rawName: s.rawName,
+            rawBdayNorm: s.rawBdayNorm,
+            room: s.room,
+            total: s.total,
+            paid: 0
+          });
+        }
+
+        const target = groupedMap.get(s.rawName);
+        // 如果生日或房間在第一行空白，補充後續非空值
+        if (!target.rawBdayNorm && s.rawBdayNorm) target.rawBdayNorm = s.rawBdayNorm;
+        if ((!target.room || target.room === '未設定') && s.room) target.room = s.room;
+        if (target.total === 0 && s.total > 0) target.total = s.total;
+
+        // 加總此學員個案名下的已繳總金額
+        (s.deposits || []).forEach(d => {
+          if (d.status === "已收到") target.paid += d.amount;
+        });
+      });
+
+      let groupedList = Array.from(groupedMap.values());
+
       if (search) {
-        filtered = memoryStudents.filter(s => s.rawName.toLowerCase().includes(search));
+        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
       }
 
-      document.getElementById('adminTotalCount').innerText = filtered.length;
+      document.getElementById('adminTotalCount').innerText = groupedList.length;
 
-      tbody.innerHTML = filtered.map(s => {
-        let paid = 0;
-        (s.deposits || []).forEach(d => { if (d.status === "已收到") paid += d.amount; });
-        const balance = Math.max(0, s.total - paid);
+      tbody.innerHTML = groupedList.map(s => {
+        const balance = Math.max(0, s.total - s.paid);
         const hasViewed = viewedNames.has(s.rawName);
 
         return `
@@ -697,10 +711,10 @@
                 : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
             </td>
             <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
-            <td class="p-3">${s.room}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${s.room}</span></td>
             <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
-            <td class="p-3 text-emerald-600 font-bold">NT$ ${paid.toLocaleString()}</td>
-            <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
+            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
           </tr>
         `;
       }).join('');
