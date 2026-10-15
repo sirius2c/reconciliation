@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳與存取監控系統 v4.3.0</title>
+  <title>中正弦樂團旅遊對帳系統 v4.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -19,10 +19,10 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.3.0 ⚡ JSONP 免 CORS 卡死絕殺版</span>
+            <h1 class="text-xl font-bold leading-tight">中正弦樂團旅遊帳務與查詢系統</h1>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.3.0版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 多重連線備援機制 · 純學生名單歸戶統計</p>
+          <p class="text-indigo-200 text-xs">家長對帳</p>
         </div>
       </div>
 
@@ -134,9 +134,9 @@
           <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
         </h3>
         <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
-          <p><span class="font-semibold text-slate-900">匯款銀行：</span> 玉山銀行 (808)</p>
-          <p><span class="font-semibold text-slate-900">戶名：</span> 樂團後援會公戶</p>
-          <p><span class="font-semibold text-slate-900">帳號：</span> 1234-567-890123</p>
+          <p><span class="font-semibold text-slate-900">匯款銀行：</span>第一銀行 新生分行 (007)</p>
+          <p><span class="font-semibold text-slate-900">戶名：</span>悠陽旅行社有限公司</p>
+          <p><span class="font-semibold text-slate-900">帳號：</span>1331-0007-728</p>
           <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
         </div>
       </div>
@@ -225,7 +225,7 @@
         <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
         <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
       </div>
-      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="adminPasswordInput" placeholder="預設密碼請問管理員" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
       <div class="flex gap-2">
         <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
         <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
@@ -261,7 +261,7 @@
 
     function isFamilyMemberName(name) {
       if (!name) return true;
-      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家人', '親屬'];
       return familyKeywords.some(kw => name.includes(kw));
     }
 
