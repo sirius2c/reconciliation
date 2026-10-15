@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.6.0</title>
+  <title>樂團旅遊對帳系統 v2.7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,13 +21,21 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.6.0 ⚡ 直連 Google 試算表</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.7.0 ⚡ 多行程獨立試算表連動</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 自動直連 · SHA-256 記憶體加密防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多試算表動態切換 · SHA-256 記憶體加密防護</p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- 行程選擇器 -->
+        <div class="relative">
+          <select id="tripSelector" onchange="switchTrip()" class="bg-indigo-800 text-white text-sm px-3 py-2 pr-8 rounded-lg border border-indigo-500 focus:outline-none focus:ring-2 focus:ring-white">
+            <option value="hualien2027" selected>2027 寒假花蓮旅行</option>
+            <option value="vienna2027">2027 暑假維也納音樂節</option>
+          </select>
+        </div>
+
         <button id="logoutBtn" onclick="logout()" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-sm px-3 py-2 rounded-lg transition">
           <i class="fa-solid fa-right-from-bracket"></i> 登出
         </button>
@@ -40,13 +48,13 @@
     <!-- 登入區塊 -->
     <div id="loginSection" class="max-w-md mx-auto bg-white rounded-2xl shadow-md p-6 border border-slate-100">
       <div class="text-center mb-6">
-        <span class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
+        <span id="currentTripBadge" class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
           當前行程：2027 寒假花蓮旅行
         </span>
 
         <!-- 自動同步狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在直接讀取 Google 試算表最新欄位...
+          <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在讀取試算表資料...
         </div>
         
         <!-- 對帳資料更新時間警告提示 -->
@@ -54,7 +62,7 @@
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
             <p class="font-bold">即時連線說明</p>
-            <p class="mt-0.5 text-amber-700">本系統已直接連動 Google 試算表，幹部更新資料後家長即可即時查詢。</p>
+            <p class="mt-0.5 text-amber-700">選擇行程後，系統將自動連動該行程對應的 Google 試算表。</p>
           </div>
         </div>
 
@@ -75,9 +83,9 @@
         </div>
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
-          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或試算表尚未登錄該資料。</p>
-          <button type="button" onclick="fetchDirectFromGoogleSheet()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>點此重新重新整理試算表資料
+          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未點選正確的行程。</p>
+          <button type="button" onclick="fetchCurrentTripSheet()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>點此重新載入該行程試算表
           </button>
         </div>
 
@@ -91,7 +99,7 @@
     <div id="dashboardSection" class="hidden space-y-6">
       <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span class="text-indigo-600 text-xs font-semibold uppercase tracking-wider bg-indigo-100 px-2.5 py-1 rounded-full">2027 寒假花蓮旅行</span>
+          <span id="userTripTag" class="text-indigo-600 text-xs font-semibold uppercase tracking-wider bg-indigo-100 px-2.5 py-1 rounded-full">--</span>
           <h2 class="text-2xl font-bold text-slate-800 mt-2"><span id="displayName">--</span> 同學家長 您好！</h2>
           <p class="text-slate-600 text-sm mt-1">分房需求：<span id="displayRoom" class="font-medium text-slate-800">--</span></p>
         </div>
@@ -145,16 +153,23 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v2.6.0-direct-sheet</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v2.7.0-multi-sheets</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 請將此處替換為您的 Google 試算表 ID
-    const SPREADSHEET_ID = "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM";
-    // 自動建構 Google CSV 導出 API 網址
-    const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`;
+    // 🔴 每個行程對應的 Google 試算表配置表 (請貼上各自的試算表 ID)
+    const TRIPS_CONFIG = {
+      hualien2027: {
+        title: "2027 寒假花蓮旅行",
+        spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM" // 請填入花蓮旅行試算表 ID
+      },
+      vienna2027: {
+        title: "2027 暑假維也納音樂節",
+        spreadsheetId: "1ZjNX0AyykS-vXI5KmTJGT_Vghu0p0_t3Lk4Um_EhyjY"   // 請填入維也納試算表 ID
+      }
+    };
 
     // SHA-256 單向雜湊計算
     async function sha256(str) {
@@ -167,14 +182,34 @@
     }
 
     let memoryStudents = [];
+    let currentTripKey = "hualien2027";
     let currentUser = null;
 
-    // 直接抓取 Google 試算表並於記憶體中進行 Hash 處理
-    function fetchDirectFromGoogleSheet() {
-      const statusEl = document.getElementById('syncStatus');
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在從 Google 試算表即時載入...`;
+    // 切換行程
+    function switchTrip() {
+      currentTripKey = document.getElementById('tripSelector').value;
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      document.getElementById('currentTripBadge').innerText = `當前行程：${tripConfig.title}`;
+      
+      if (currentUser) logout();
+      fetchCurrentTripSheet();
+    }
 
-      Papa.parse(GOOGLE_SHEET_CSV_URL, {
+    // 抓取當前選擇行程的 Google 試算表
+    function fetchCurrentTripSheet() {
+      const statusEl = document.getElementById('syncStatus');
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      
+      if (!tripConfig || !tripConfig.spreadsheetId || tripConfig.spreadsheetId.includes("_HERE")) {
+        statusEl.innerHTML = `<span class="text-amber-600"><i class="fa-solid fa-triangle-exclamation mr-1"></i>尚未設定 ${tripConfig.title} 的試算表 ID。</span>`;
+        memoryStudents = [];
+        return;
+      }
+
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在載入 [${tripConfig.title}] 試算表資料...`;
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv`;
+
+      Papa.parse(csvUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -184,7 +219,6 @@
             
             // 轉譯並加密儲存在記憶體中
             memoryStudents = await Promise.all(rawRows.map(async row => {
-              // 尋找試算表欄位（自動相容各種相近欄位名稱）
               const name = (row['學生姓名'] || row['姓名'] || '').trim();
               const bdayRaw = (row['生日'] || row['學生生日'] || '').toString();
               
@@ -210,13 +244,13 @@
               };
             }));
 
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>成功連動 Google 試算表 (${memoryStudents.length} 筆資料)</span>`;
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>成功載入 [${tripConfig.title}] 資料 (${memoryStudents.length} 筆)</span>`;
           } catch(err) {
             statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-triangle-exclamation mr-1"></i>試算表欄位解析失敗，請確認標頭欄位名稱。</span>`;
           }
         },
         error: function(err) {
-          statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認共用權限已開啟「知道連結的人皆可檢視」。</span>`;
+          statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
         }
       });
     }
@@ -239,12 +273,14 @@
 
       if (user) {
         currentUser = user;
+        const tripConfig = TRIPS_CONFIG[currentTripKey];
         
         document.getElementById('loginError').classList.add('hidden');
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('dashboardSection').classList.remove('hidden');
         document.getElementById('logoutBtn').classList.remove('hidden');
 
+        document.getElementById('userTripTag').innerText = tripConfig.title;
         document.getElementById('displayName').innerText = rawName;
         document.getElementById('displayRoom').innerText = user.room;
         document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
@@ -289,8 +325,8 @@
       document.getElementById('loginForm').reset();
     }
 
-    // 初始化：直接抓取試算表
-    fetchDirectFromGoogleSheet();
+    // 初始化載入第一個行程
+    fetchCurrentTripSheet();
   </script>
 </body>
 </html>
