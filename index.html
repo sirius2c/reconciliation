@@ -135,7 +135,7 @@
           <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
         </h3>
         <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
-          <p><span class="font-semibold text-slate-900">收款銀行：</span> 第一銀行 新生分行（銀行代號：007）</p>
+          <p><span class="font-semibold text-slate-900">收款銀行：</span> 第一銀行 新生分行（007)</p>
           <p><span class="font-semibold text-slate-900">戶名：</span> 悠陽旅行社有限公司</p>
           <p><span class="font-semibold text-slate-900">帳號：</span> 1331-0007-728</p>
           <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
@@ -224,7 +224,7 @@
         <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
         <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
       </div>
-      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="adminPasswordInput" placeholder="密碼請洽管理員" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
       <div class="flex gap-2">
         <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
         <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
@@ -260,7 +260,7 @@
 
     function isFamilyMemberName(name) {
       if (!name) return true;
-      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家人', '親屬'];
       return familyKeywords.some(kw => name.includes(kw));
     }
 
