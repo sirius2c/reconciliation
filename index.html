@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v4.2.0</title>
+  <title>樂團旅遊對帳與存取監控系統 v4.2.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -20,9 +20,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.2.0</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.2.1 🛡️ 防卡死連線修復版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 自動過濾家屬重複列 · 純學生名單歸戶統計</p>
         </div>
       </div>
 
@@ -162,18 +162,14 @@
 
       <!-- 未查看家長追蹤卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- 左卡片：家長存取紀錄 Log -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
             <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
             <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空 Log</button>
           </h3>
-          <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y">
-            <!-- JS 動態渲染歷史 Log -->
-          </div>
+          <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y"></div>
         </div>
 
-        <!-- 右卡片：未查看團員名單 -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
             <span><i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>未查看/未對帳學生名單 (<span id="unviewedCount">0</span> 人)</span>
@@ -181,13 +177,11 @@
               <i class="fa-solid fa-copy mr-1"></i>複製提醒名單
             </button>
           </h3>
-          <div id="unviewedStudentList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto text-xs">
-            <!-- JS 動態渲染未對帳學生標籤 -->
-          </div>
+          <div id="unviewedStudentList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto text-xs"></div>
         </div>
       </div>
 
-      <!-- 全團學員帳務清單總覽 (純學生清單) -->
+      <!-- 全團學員帳務清單總覽 -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
           <div>
@@ -213,9 +207,7 @@
                 <th class="p-3">剩餘尾款</th>
               </tr>
             </thead>
-            <tbody id="adminStudentTbody" class="divide-y divide-slate-100">
-              <!-- JS 動態渲染純學生列表 -->
-            </tbody>
+            <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
       </div>
@@ -245,7 +237,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.2.0-clean-students</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.2.1-robust-connection</strong></span>
       </div>
     </div>
   </footer>
@@ -267,7 +259,6 @@
     const ADMIN_PASSWORD = "admin123";
     const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
 
-    // 🔴 判斷名稱是否為「家屬/非學生列」
     function isFamilyMemberName(name) {
       if (!name) return true;
       const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
@@ -304,4 +295,277 @@
         }
       }
 
-      if (year &&
+      if (year && month && day) {
+        return `${year}/${month}/${day}`;
+      }
+      return s;
+    }
+
+    let memoryStudents = [];
+    let currentTripKey = "hualien2027";
+    let currentUser = null;
+    let isAdminMode = false;
+
+    function switchTrip() {
+      currentTripKey = document.getElementById('tripSelector').value;
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      document.getElementById('currentTripBadge').innerText = `當前行程：${tripConfig.title}`;
+      
+      if (currentUser) logout();
+      fetchCurrentTripSheet(false);
+    }
+
+    // 🔴 防卡死連線核心：fetch + PapaParse 雙重連線與絕對 UI 更新
+    async function fetchCurrentTripSheet(forceRefresh = false) {
+      const statusEl = document.getElementById('syncStatus');
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+
+      const cacheKey = `trip_cache_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cachedTime = localStorage.getItem(cacheTimeKey);
+      const now = Date.now();
+
+      if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
+        try {
+          memoryStudents = JSON.parse(cachedData);
+          if (memoryStudents && memoryStudents.length > 0) {
+            const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
+            if (isAdminMode) renderAdminDashboard();
+            return;
+          }
+        } catch(e) {
+          console.warn("快取解析失敗，清空舊快取...");
+          localStorage.removeItem(cacheKey);
+          localStorage.removeItem(cacheTimeKey);
+        }
+      }
+
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取 Google 試算表...`;
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}&_t=${now}`;
+
+      try {
+        // 使用原生 fetch 抓取，解決跨網域或快取造成的死鎖
+        const response = await fetch(csvUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
+        }
+        const csvText = await response.text();
+
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: false,
+          complete: async function(results) {
+            try {
+              const rawRows = results.data;
+              if (!rawRows || rawRows.length === 0) {
+                statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>連線成功，但表格無內容。</span>`;
+                return;
+              }
+
+              let lastStudentName = "";
+              let lastBirthday = "";
+              let lastRoom = "";
+              let lastTotal = 0;
+
+              memoryStudents = await Promise.all(rawRows.map(async row => {
+                let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+                let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
+                let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
+                let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+
+                if (name) lastStudentName = name; else name = lastStudentName;
+                if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
+                if (room) lastRoom = room; else room = lastRoom;
+                
+                let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
+                if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
+
+                const normBday = normalizeDateString(bdayRaw);
+                const nameHash = name ? await sha256(name) : '';
+                const bdayHash = normBday ? await sha256(normBday) : '';
+
+                const deposits = [];
+                const allKeys = Object.keys(row);
+
+                const amountKeys = allKeys.filter(key => {
+                  const isAmount = key.includes('金額') || key.includes('期款');
+                  const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註');
+                  return isAmount && isNotMeta;
+                });
+
+                amountKeys.forEach(amtKey => {
+                  const amtVal = Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, ''));
+                  const stageName = amtKey.replace(/匯款金額|金額|款/g, '').trim() || "第一期";
+
+                  const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
+                  const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+
+                  const timeVal = timeKey ? row[timeKey].toString().trim() : '';
+                  const methodVal = methodKey ? row[methodKey].toString().trim() : '';
+
+                  if (amtVal > 0 || timeVal || methodVal) {
+                    deposits.push({
+                      stage: stageName,
+                      amount: amtVal,
+                      status: amtVal > 0 ? "已收到" : "待確認",
+                      note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
+                    });
+                  }
+                });
+
+                if (deposits.length === 0) {
+                  deposits.push({
+                    stage: "第一期",
+                    amount: 0,
+                    status: "待繳費",
+                    note: "暫無紀錄"
+                  });
+                }
+
+                return {
+                  rawName: name,
+                  rawBdayNorm: normBday,
+                  nameHash: nameHash,
+                  birthdayHash: bdayHash,
+                  room: room || '未設定',
+                  total: totalCost,
+                  deposits: deposits
+                };
+              }));
+
+              memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
+
+              localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
+              localStorage.setItem(cacheTimeKey, now.toString());
+
+              statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
+              
+              if (isAdminMode) renderAdminDashboard();
+            } catch(err) {
+              console.error("解析過程例外錯誤:", err);
+              statusEl.innerHTML = `
+                <span class="text-rose-500 font-medium block"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>
+                <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1">重試連線</button>
+              `;
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error("Fetch 下載失敗:", error);
+        statusEl.innerHTML = `
+          <span class="text-rose-500 font-medium block"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表。</span>
+          <p class="text-[10px] text-slate-400 mt-0.5">請確認試算表權限已設為「知道連結的人皆可檢視」</p>
+          <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1">點此重新連線</button>
+        `;
+      }
+    }
+
+    function recordAccessLog(studentName) {
+      const logKey = `access_log_${currentTripKey}`;
+      let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
+      
+      logs.unshift({ name: studentName, time: nowStr });
+      if (logs.length > 100) logs = logs.slice(0, 100);
+
+      localStorage.setItem(logKey, JSON.stringify(logs));
+    }
+
+    async function execLogin() {
+      const rawName = (document.getElementById('studentName').value || "").trim();
+      const rawBdayInput = document.getElementById('studentBirthday').value;
+      const normInputBday = normalizeDateString(rawBdayInput);
+
+      if (!rawName || !normInputBday) {
+        alert("請輸入完整的學生姓名與生日！");
+        return;
+      }
+
+      if (!memoryStudents || memoryStudents.length === 0) {
+        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請點擊下方按鈕重新載入。";
+        document.getElementById('loginError').classList.remove('hidden');
+        return;
+      }
+
+      const inputNameHash = await sha256(rawName);
+      const inputBdayHash = await sha256(normInputBday);
+
+      const user = memoryStudents.find(student => {
+        const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
+        const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
+        return isHashMatch || isTextMatch;
+      });
+
+      if (user) {
+        currentUser = user;
+        const tripConfig = TRIPS_CONFIG[currentTripKey];
+        
+        recordAccessLog(rawName);
+
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        document.getElementById('userTripTag').innerText = tripConfig.title;
+        document.getElementById('displayName').innerText = rawName;
+        document.getElementById('displayRoom').innerText = user.room;
+        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
+
+        let paidTotal = 0;
+        const deposits = user.deposits || [];
+        
+        deposits.forEach(d => {
+          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
+        });
+
+        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
+        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
+
+        const container = document.getElementById('depositListContainer');
+        container.innerHTML = deposits.map(d => `
+          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800">${d.stage}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-slate-400">金額</p>
+              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
+            </div>
+          </div>
+        `).join('');
+
+      } else {
+        document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對試算表資料。";
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      document.getElementById('adminPasswordInput').value = "";
+      document.getElementById('adminPasswordInput').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    function verifyAdminPassword() {
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === ADMIN_PASSWORD) {
