@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v4.7.0</title>
+  <title>中正弦樂團旅遊對帳系統 v4.8.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -20,7 +20,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.7.0</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.8.0</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs"></p>
         </div>
@@ -135,7 +135,7 @@
           <i class="fa-solid fa-credit-card text-indigo-600"></i> 匯款與帳戶資訊
         </h3>
         <div class="bg-slate-50 p-4 rounded-xl space-y-2 text-sm text-slate-700 border border-slate-200">
-          <p><span class="font-semibold text-slate-900">收款銀行：</span> 第一銀行 新生分行（007)</p>
+          <p><span class="font-semibold text-slate-900">收款銀行：</span> 第一銀行 新生分行 (007)</p>
           <p><span class="font-semibold text-slate-900">戶名：</span> 悠陽旅行社有限公司</p>
           <p><span class="font-semibold text-slate-900">帳號：</span> 1331-0007-728</p>
           <p class="text-xs text-amber-600 mt-1"><i class="fa-solid fa-circle-info mr-1"></i> 匯款時請務必於備註欄填寫「學生姓名」。</p>
@@ -236,7 +236,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.7.0-chrome-diag</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.8.0-clean-room-name</strong></span>
       </div>
     </div>
   </footer>
@@ -327,6 +327,9 @@
         let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
         let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
         let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+
+        // 🔴 自動消除房型名稱末尾的數字 (例如 "二人房3" -> "二人房")
+        room = room.replace(/[0-9０-９]+$/g, '').trim();
 
         if (name) lastStudentName = name; else name = lastStudentName;
         if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
@@ -472,7 +475,6 @@
         }
       }
 
-      // 🔴 帶有直連測試與診斷資訊的錯誤提示區塊
       const directTestUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
 
       statusEl.innerHTML = `
