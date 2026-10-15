@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.8.0</title>
+  <title>樂團旅遊對帳系統 v2.9.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,7 +21,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.8.0 🔒 匿名防護修正版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.9.0 ⚡ 智慧相容認證版</span>
           </div>
           <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 動態連線 · SHA-256 記憶體加密防護</p>
         </div>
@@ -83,7 +83,7 @@
         </div>
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
-          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，或未點選正確的行程。</p>
+          <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對試算表資料。</p>
           <button type="button" onclick="fetchCurrentTripSheet()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
             <i class="fa-solid fa-arrows-rotate mr-1"></i>點此重新載入該行程試算表
           </button>
@@ -153,13 +153,13 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v2.8.0-clean</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v2.9.0-smart-auth</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 每個行程對應的 Google 試算表配置表 (請貼上各自的試算表 ID 與 分頁 gid)
+    // 🔴 每個行程對應的 Google 試算表配置表 (請填入各自的試算表 ID 與 分頁 gid)
     const TRIPS_CONFIG = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
@@ -179,8 +179,16 @@
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    function normalizeStr(str) {
-      return (str || "").toString().trim().toLowerCase().replace(/[-/ \t]/g, "");
+    // 將各種格式的生日統一轉為純數字標準字串（例如：20130101）
+    function normalizeDateString(str) {
+      if (!str) return "";
+      let cleaned = str.toString().trim().replace(/[-/ \t]/g, "");
+      // 若為 YYYYM D 或 YYYYMM D 嘗試補零處理
+      if (cleaned.length === 7) {
+        // 例: 2013105 -> 20131005 或 2013115 -> 20130115，取標準數字特徵
+        cleaned = cleaned.substring(0, 4) + "0" + cleaned.substring(4);
+      }
+      return cleaned.toLowerCase();
     }
 
     let memoryStudents = [];
@@ -209,126 +217,4 @@
       }
 
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在載入 [${tripConfig.title}] 試算表資料...`;
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
-
-      Papa.parse(csvUrl, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: async function(results) {
-          try {
-            const rawRows = results.data;
-            
-            // 轉譯並即時轉為 Hash 加密儲存在記憶體中（完全不儲存明文姓名）
-            memoryStudents = await Promise.all(rawRows.map(async row => {
-              const name = (row['學生姓名'] || row['姓名'] || '').trim();
-              const bdayRaw = (row['生日'] || row['學生生日'] || '').toString();
-              
-              const nameHash = name ? await sha256(name) : '';
-              const bdayHash = bdayRaw ? await sha256(normalizeStr(bdayRaw)) : '';
-
-              const depositAmt = Number(row['第一期金額'] || row['已繳金額'] || row['訂金'] || 0);
-              const depositStatus = row['第一期狀態'] || row['狀態'] || (depositAmt > 0 ? '已收到' : '待繳費');
-
-              return {
-                nameHash: nameHash,
-                birthdayHash: bdayHash,
-                room: row['房型'] || row['分房'] || '未設定',
-                total: Number(row['總費用'] || row['應繳金額'] || row['應繳總額'] || 0),
-                deposits: [
-                  {
-                    stage: "第一期訂金",
-                    amount: depositAmt,
-                    status: depositStatus,
-                    note: row['備註'] || row['付款備註'] || row['說明'] || '無'
-                  }
-                ]
-              };
-            }));
-
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>成功載入 [${tripConfig.title}] 資料 (${memoryStudents.length} 筆)</span>`;
-          } catch(err) {
-            statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-triangle-exclamation mr-1"></i>試算表欄位解析失敗，請確認標頭欄位名稱。</span>`;
-          }
-        },
-        error: function(err) {
-          statusEl.innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
-        }
-      });
-    }
-
-    async function execLogin() {
-      const rawName = (document.getElementById('studentName').value || "").trim();
-      const rawBday = normalizeStr(document.getElementById('studentBirthday').value);
-
-      if (!rawName || !rawBday) {
-        alert("請輸入完整的學生姓名與生日！");
-        return;
-      }
-
-      const inputNameHash = await sha256(rawName);
-      const inputBdayHash = await sha256(rawBday);
-
-      const user = memoryStudents.find(student => {
-        return student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
-      });
-
-      if (user) {
-        currentUser = user;
-        const tripConfig = TRIPS_CONFIG[currentTripKey];
-        
-        document.getElementById('loginError').classList.add('hidden');
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('dashboardSection').classList.remove('hidden');
-        document.getElementById('logoutBtn').classList.remove('hidden');
-
-        document.getElementById('userTripTag').innerText = tripConfig.title;
-        document.getElementById('displayName').innerText = rawName;
-        document.getElementById('displayRoom').innerText = user.room;
-        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
-
-        let paidTotal = 0;
-        const deposits = user.deposits || [];
-        
-        deposits.forEach(d => {
-          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
-        });
-
-        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
-        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
-
-        const container = document.getElementById('depositListContainer');
-        container.innerHTML = deposits.map(d => `
-          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-800">${d.stage}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
-              </div>
-              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄說明：${d.note}</p>
-            </div>
-            <div class="text-right">
-              <p class="text-xs text-slate-400">應繳金額</p>
-              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
-            </div>
-          </div>
-        `).join('');
-
-      } else {
-        document.getElementById('loginError').classList.remove('hidden');
-      }
-    }
-
-    function logout() {
-      currentUser = null;
-      document.getElementById('loginSection').classList.remove('hidden');
-      document.getElementById('dashboardSection').classList.add('hidden');
-      document.getElementById('logoutBtn').classList.add('hidden');
-      document.getElementById('loginForm').reset();
-    }
-
-    // 初始化載入第一個行程
-    fetchCurrentTripSheet();
-  </script>
-</body>
-</html>
+      const csvUrl = `
