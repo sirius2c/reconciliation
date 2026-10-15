@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳與存取監控系統 v4.2.1</title>
+  <title>樂團旅遊對帳與存取監控系統 v4.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -20,9 +20,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.2.1 🛡️ 防卡死連線修復版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.3.0 ⚡ JSONP 免 CORS 卡死絕殺版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 自動過濾家屬重複列 · 純學生名單歸戶統計</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多重連線備援機制 · 純學生名單歸戶統計</p>
         </div>
       </div>
 
@@ -237,7 +237,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.2.1-robust-connection</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.3.0-jsonp-fallback</strong></span>
       </div>
     </div>
   </footer>
@@ -305,6 +305,7 @@
     let currentTripKey = "hualien2027";
     let currentUser = null;
     let isAdminMode = false;
+    let fetchTimeoutTimer = null;
 
     function switchTrip() {
       currentTripKey = document.getElementById('tripSelector').value;
@@ -315,7 +316,93 @@
       fetchCurrentTripSheet(false);
     }
 
-    // 🔴 防卡死連線核心：fetch + PapaParse 雙重連線與絕對 UI 更新
+    // 解析二維列資料陣列為物件
+    async function processRawRows(rawRows) {
+      let lastStudentName = "";
+      let lastBirthday = "";
+      let lastRoom = "";
+      let lastTotal = 0;
+
+      memoryStudents = await Promise.all(rawRows.map(async row => {
+        let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+        let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
+        let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
+        let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+
+        if (name) lastStudentName = name; else name = lastStudentName;
+        if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
+        if (room) lastRoom = room; else room = lastRoom;
+        
+        let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
+        if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
+
+        const normBday = normalizeDateString(bdayRaw);
+        const nameHash = name ? await sha256(name) : '';
+        const bdayHash = normBday ? await sha256(normBday) : '';
+
+        const deposits = [];
+        const allKeys = Object.keys(row);
+
+        const amountKeys = allKeys.filter(key => {
+          const isAmount = key.includes('金額') || key.includes('期款');
+          const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註');
+          return isAmount && isNotMeta;
+        });
+
+        amountKeys.forEach(amtKey => {
+          const amtVal = Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, ''));
+          const stageName = amtKey.replace(/匯款金額|金額|款/g, '').trim() || "第一期";
+
+          const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
+          const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+
+          const timeVal = timeKey ? row[timeKey].toString().trim() : '';
+          const methodVal = methodKey ? row[methodKey].toString().trim() : '';
+
+          if (amtVal > 0 || timeVal || methodVal) {
+            deposits.push({
+              stage: stageName,
+              amount: amtVal,
+              status: amtVal > 0 ? "已收到" : "待確認",
+              note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
+            });
+          }
+        });
+
+        if (deposits.length === 0) {
+          deposits.push({
+            stage: "第一期",
+            amount: 0,
+            status: "待繳費",
+            note: "暫無紀錄"
+          });
+        }
+
+        return {
+          rawName: name,
+          rawBdayNorm: normBday,
+          nameHash: nameHash,
+          birthdayHash: bdayHash,
+          room: room || '未設定',
+          total: totalCost,
+          deposits: deposits
+        };
+      }));
+
+      memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
+
+      const cacheKey = `trip_cache_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
+      localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
+      localStorage.setItem(cacheTimeKey, Date.now().toString());
+
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
+      
+      if (isAdminMode) renderAdminDashboard();
+    }
+
+    // 🔴 絕殺防卡死連線：Fetch + JSONP 雙重備援
     async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
       const tripConfig = TRIPS_CONFIG[currentTripKey];
@@ -336,131 +423,97 @@
             return;
           }
         } catch(e) {
-          console.warn("快取解析失敗，清空舊快取...");
           localStorage.removeItem(cacheKey);
           localStorage.removeItem(cacheTimeKey);
         }
       }
 
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取 Google 試算表...`;
+
+      // 6秒絕對超時解鎖，絕不讓畫面死卡
+      if (fetchTimeoutTimer) clearTimeout(fetchTimeoutTimer);
+      fetchTimeoutTimer = setTimeout(() => {
+        statusEl.innerHTML = `
+          <span class="text-amber-600 font-medium block"><i class="fa-solid fa-triangle-exclamation mr-1"></i>連線稍慢，正在嘗試備援通道...</span>
+          <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1">點此重試</button>
+        `;
+      }, 6000);
+
       const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}&_t=${now}`;
 
+      // 通道 1: Fetch 存取 CSV
       try {
-        // 使用原生 fetch 抓取，解決跨網域或快取造成的死鎖
         const response = await fetch(csvUrl, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
-        }
-        const csvText = await response.text();
-
-        Papa.parse(csvText, {
-          header: true,
-          skipEmptyLines: false,
-          complete: async function(results) {
-            try {
-              const rawRows = results.data;
-              if (!rawRows || rawRows.length === 0) {
-                statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>連線成功，但表格無內容。</span>`;
+        if (response.ok) {
+          const csvText = await response.text();
+          Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: false,
+            complete: async function(results) {
+              clearTimeout(fetchTimeoutTimer);
+              if (results.data && results.data.length > 0) {
+                await processRawRows(results.data);
                 return;
               }
-
-              let lastStudentName = "";
-              let lastBirthday = "";
-              let lastRoom = "";
-              let lastTotal = 0;
-
-              memoryStudents = await Promise.all(rawRows.map(async row => {
-                let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
-                let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
-                let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
-                let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
-
-                if (name) lastStudentName = name; else name = lastStudentName;
-                if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
-                if (room) lastRoom = room; else room = lastRoom;
-                
-                let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
-                if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
-
-                const normBday = normalizeDateString(bdayRaw);
-                const nameHash = name ? await sha256(name) : '';
-                const bdayHash = normBday ? await sha256(normBday) : '';
-
-                const deposits = [];
-                const allKeys = Object.keys(row);
-
-                const amountKeys = allKeys.filter(key => {
-                  const isAmount = key.includes('金額') || key.includes('期款');
-                  const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註');
-                  return isAmount && isNotMeta;
-                });
-
-                amountKeys.forEach(amtKey => {
-                  const amtVal = Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, ''));
-                  const stageName = amtKey.replace(/匯款金額|金額|款/g, '').trim() || "第一期";
-
-                  const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
-                  const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
-
-                  const timeVal = timeKey ? row[timeKey].toString().trim() : '';
-                  const methodVal = methodKey ? row[methodKey].toString().trim() : '';
-
-                  if (amtVal > 0 || timeVal || methodVal) {
-                    deposits.push({
-                      stage: stageName,
-                      amount: amtVal,
-                      status: amtVal > 0 ? "已收到" : "待確認",
-                      note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
-                    });
-                  }
-                });
-
-                if (deposits.length === 0) {
-                  deposits.push({
-                    stage: "第一期",
-                    amount: 0,
-                    status: "待繳費",
-                    note: "暫無紀錄"
-                  });
-                }
-
-                return {
-                  rawName: name,
-                  rawBdayNorm: normBday,
-                  nameHash: nameHash,
-                  birthdayHash: bdayHash,
-                  room: room || '未設定',
-                  total: totalCost,
-                  deposits: deposits
-                };
-              }));
-
-              memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
-
-              localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
-              localStorage.setItem(cacheTimeKey, now.toString());
-
-              statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
-              
-              if (isAdminMode) renderAdminDashboard();
-            } catch(err) {
-              console.error("解析過程例外錯誤:", err);
-              statusEl.innerHTML = `
-                <span class="text-rose-500 font-medium block"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>
-                <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1">重試連線</button>
-              `;
+              fetchViaJsonp(tripConfig);
             }
-          }
-        });
-
-      } catch (error) {
-        console.error("Fetch 下載失敗:", error);
-        statusEl.innerHTML = `
-          <span class="text-rose-500 font-medium block"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表。</span>
-          <p class="text-[10px] text-slate-400 mt-0.5">請確認試算表權限已設為「知道連結的人皆可檢視」</p>
-          <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1">點此重新連線</button>
-        `;
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn("Fetch 通道失敗，切換至 JSONP 備援通道...", err);
       }
+
+      // 通道 2: JSONP 免 CORS 備援機制
+      fetchViaJsonp(tripConfig);
+    }
+
+    // JSONP 備援載入器
+    function fetchViaJsonp(tripConfig) {
+      window.googleVizCallback = async function(jsonResponse) {
+        clearTimeout(fetchTimeoutTimer);
+        try {
+          const table = jsonResponse.table;
+          const cols = table.cols.map(c => c ? (c.label || c.id) : '');
+          const rawRows = table.rows.map(r => {
+            const obj = {};
+            r.c.forEach((cell, idx) => {
+              const colName = cols[idx];
+              if (colName) {
+                obj[colName] = cell ? (cell.f || cell.v || '') : '';
+              }
+            });
+            return obj;
+          });
+
+          await processRawRows(rawRows);
+        } catch (e) {
+          showConnectionError();
+        }
+      };
+
+      const jsonpUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=responseHandler:googleVizCallback&gid=${tripConfig.gid || 0}&_t=${Date.now()}`;
+      
+      const oldScript = document.getElementById('jsonpScript');
+      if (oldScript) oldScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'jsonpScript';
+      script.src = jsonpUrl;
+      script.onerror = function() {
+        clearTimeout(fetchTimeoutTimer);
+        showConnectionError();
+      };
+      document.head.appendChild(script);
+    }
+
+    function showConnectionError() {
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerHTML = `
+        <span class="text-rose-500 font-medium block"><i class="fa-solid fa-circle-xmark mr-1"></i>連線受限，無法讀取試算表。</span>
+        <p class="text-[10px] text-slate-400 mt-0.5">請確認 Google 試算表權限已開啟「知道連結的人皆可檢視」</p>
+        <button onclick="fetchCurrentTripSheet(true)" class="text-indigo-600 underline text-xs mt-1 font-bold">點此強制重新連線</button>
+      `;
     }
 
     function recordAccessLog(studentName) {
@@ -569,3 +622,160 @@
     function verifyAdminPassword() {
       const pwd = document.getElementById('adminPasswordInput').value;
       if (pwd === ADMIN_PASSWORD) {
+        isAdminMode = true;
+        closeAdminModal();
+        
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+
+        renderAdminDashboard();
+      } else {
+        alert("密碼不正確！");
+      }
+    }
+
+    function closeAdminPanel() {
+      isAdminMode = false;
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderAdminDashboard() {
+      renderAccessLogs();
+      renderUnviewedStudents();
+      renderAdminStudentTable();
+    }
+
+    function renderAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const container = document.getElementById('accessLogList');
+
+      if (logs.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
+        return;
+      }
+
+      container.innerHTML = logs.map(l => `
+        <div class="py-1.5 flex justify-between items-center">
+          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
+          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
+        </div>
+      `).join('');
+    }
+
+    function clearAccessLogs() {
+      if (confirm("確定要清空家長存取 Log 紀錄嗎？")) {
+        localStorage.removeItem(`access_log_${currentTripKey}`);
+        renderAccessLogs();
+        renderUnviewedStudents();
+      }
+    }
+
+    let currentUnviewedNames = [];
+    function renderUnviewedStudents() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const studentOnlyNames = memoryStudents
+        .filter(s => !isFamilyMemberName(s.rawName))
+        .map(s => s.rawName);
+
+      currentUnviewedNames = Array.from(new Set(studentOnlyNames)).filter(name => !viewedNames.has(name));
+
+      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
+      const container = document.getElementById('unviewedStudentList');
+
+      if (currentUnviewedNames.length === 0) {
+        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團學生家長皆已進入系統查看過帳務。</span>`;
+        return;
+      }
+
+      container.innerHTML = currentUnviewedNames.map(name => `
+        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
+          ${name}
+        </span>
+      `).join('');
+    }
+
+    function copyUnviewedList() {
+      if (currentUnviewedNames.length === 0) {
+        alert("目前全團家長皆已完成查看，無需發送提醒！");
+        return;
+      }
+
+      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
+      });
+    }
+
+    function renderAdminStudentTable() {
+      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
+      const tbody = document.getElementById('adminStudentTbody');
+      
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const cleanStudents = memoryStudents.filter(s => !isFamilyMemberName(s.rawName));
+      const groupedMap = new Map();
+
+      cleanStudents.forEach(s => {
+        if (!groupedMap.has(s.rawName)) {
+          groupedMap.set(s.rawName, {
+            rawName: s.rawName,
+            rawBdayNorm: s.rawBdayNorm,
+            room: s.room,
+            total: s.total,
+            paid: 0
+          });
+        }
+
+        const target = groupedMap.get(s.rawName);
+        if (!target.rawBdayNorm && s.rawBdayNorm) target.rawBdayNorm = s.rawBdayNorm;
+        if ((!target.room || target.room === '未設定') && s.room) target.room = s.room;
+        if (target.total === 0 && s.total > 0) target.total = s.total;
+
+        (s.deposits || []).forEach(d => {
+          if (d.status === "已收到") target.paid += d.amount;
+        });
+      });
+
+      let groupedList = Array.from(groupedMap.values());
+
+      if (search) {
+        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
+      }
+
+      document.getElementById('adminTotalCount').innerText = groupedList.length;
+
+      tbody.innerHTML = groupedList.map(s => {
+        const balance = Math.max(0, s.total - s.paid);
+        const hasViewed = viewedNames.has(s.rawName);
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
+            <td class="p-3">
+              ${hasViewed 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
+                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+            </td>
+            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${s.room}</span></td>
+            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
+            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 初始化載入
+    fetchCurrentTripSheet(false);
+  </script>
+</body>
+</html>
