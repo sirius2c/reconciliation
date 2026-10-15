@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v4.5.0</title>
+  <title>中正弦樂團旅遊對帳系統 v4.7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -20,7 +20,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.5.0 🛡️ 代理備援防卡死版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.7.0 🔍 Chrome 自動診斷版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">家長對帳 · 多重連線備援機制 · 純學生名單歸戶統計</p>
         </div>
@@ -54,16 +54,9 @@
           當前行程：2027 寒假花蓮旅行
         </span>
 
-        <!-- 自動連線狀態與備援按鈕專區 -->
-        <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
+        <!-- 自動連線狀態顯示 -->
+        <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1 min-h-[32px]">
           <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取試算表資料...</div>
-        </div>
-
-        <div id="fallbackBtnBox" class="mt-2 hidden">
-          <button onclick="fetchCurrentTripSheet(true, true)" class="bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg transition shadow-sm flex items-center justify-center gap-1.5 mx-auto">
-            <i class="fa-solid fa-bolt text-amber-600"></i>
-            <span>試算表載入較慢？點此改走「備援快速通道」</span>
-          </button>
         </div>
         
         <div class="mt-3 bg-indigo-50/60 border border-indigo-100 text-indigo-900 rounded-xl p-3 text-xs text-left flex items-start gap-2 shadow-sm">
@@ -92,8 +85,8 @@
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
           <p id="loginErrorText"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
-          <button type="button" onclick="fetchCurrentTripSheet(true, true)" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制走備援通道重新載入
+          <button type="button" onclick="fetchCurrentTripSheet(true)" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制重新連線
           </button>
         </div>
 
@@ -159,8 +152,8 @@
           <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 精確學生對帳總覽</p>
         </div>
         <div class="flex gap-2">
-          <button onclick="fetchCurrentTripSheet(true, true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
-            <i class="fa-solid fa-rotate mr-1"></i> 強制走代理刷新快取
+          <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
+            <i class="fa-solid fa-rotate mr-1"></i> 強制刷新全站快取
           </button>
           <button onclick="closeAdminPanel()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-4 py-2.5 rounded-lg transition">
             返回家長查詢區
@@ -243,7 +236,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v4.5.0-proxy-fallback</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.7.0-chrome-diag</strong></span>
       </div>
     </div>
   </footer>
@@ -267,7 +260,7 @@
 
     function isFamilyMemberName(name) {
       if (!name) return true;
-      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家人', '親屬'];
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
       return familyKeywords.some(kw => name.includes(kw));
     }
 
@@ -321,7 +314,6 @@
       fetchCurrentTripSheet(false);
     }
 
-    // 🔴 核心解析邏輯 (防禦 HTML 登入頁誤判)
     async function processRawRows(rawRows) {
       if (!rawRows || rawRows.length === 0) return false;
 
@@ -407,16 +399,31 @@
 
       const statusEl = document.getElementById('syncStatus');
       statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
-      document.getElementById('fallbackBtnBox').classList.add('hidden');
       
       if (isAdminMode) renderAdminDashboard();
       return true;
     }
 
-    // 🔴 絕殺防卡死雙通道連線：Direct Fetch -> CORS Proxy
-    async function fetchCurrentTripSheet(forceRefresh = false, useProxy = false) {
+    async function fetchWithTimeout(url, timeoutMs = 4000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        clearTimeout(timer);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html") || text.includes("google.com/service/login")) {
+          throw new Error("抓取到 Google 登入驗證頁面");
+        }
+        return text;
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    }
+
+    async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
-      const fallbackBtnBox = document.getElementById('fallbackBtnBox');
       const tripConfig = TRIPS_CONFIG[currentTripKey];
 
       const cacheKey = `trip_cache_${currentTripKey}`;
@@ -431,7 +438,6 @@
           if (memoryStudents && memoryStudents.length > 0) {
             const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
             statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
-            fallbackBtnBox.classList.add('hidden');
             if (isAdminMode) renderAdminDashboard();
             return;
           }
@@ -441,54 +447,52 @@
         }
       }
 
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取 Google 試算表...`;
-      fallbackBtnBox.classList.remove('hidden'); // 3 秒內無結果隨時給家長按
+      const rawExportUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/export?format=csv&gid=${tripConfig.gid || 0}&_t=${now}`;
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}&_t=${now}`;
 
-      const directUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}&_t=${now}`;
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
+      const candidateUrls = [
+        { name: "Google 匯出通道", url: rawExportUrl },
+        { name: "Google Viz 通道", url: gvizUrl },
+        { name: "AllOrigins 備援代理", url: `https://api.allorigins.win/raw?url=${encodeURIComponent(rawExportUrl)}` },
+        { name: "CORSProxy 備援代理", url: `https://corsproxy.io/?${encodeURIComponent(rawExportUrl)}` }
+      ];
 
-      const targetUrl = useProxy ? proxyUrl : directUrl;
-
-      try {
-        const response = await fetch(targetUrl, { cache: "no-store" });
-        if (!response.ok) throw new Error("網絡回應非 200");
-        
-        const text = await response.text();
-
-        // 核心檢測：若抓到 Google 登入驗證 HTML 頁面，自動切換至 Proxy
-        if (text.trim().startsWith("<!DOCTYPE") || text.includes("<html")) {
-          if (!useProxy) {
-            console.warn("偵測到 Google HTML 驗證頁，自動切換 CORS 代理通道...");
-            return fetchCurrentTripSheet(true, true);
-          } else {
-            throw new Error("備援通道亦抓到 HTML");
-          }
-        }
-
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: false,
-          complete: async function(results) {
+      for (let i = 0; i < candidateUrls.length; i++) {
+        const item = candidateUrls[i];
+        statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取資料 (${item.name})...`;
+        try {
+          const csvText = await fetchWithTimeout(item.url, 4000);
+          const results = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+          if (results.data && results.data.length > 0) {
             const success = await processRawRows(results.data);
-            if (!success && !useProxy) {
-              console.warn("CSV 解析筆數為 0，切換至代理通道...");
-              fetchCurrentTripSheet(true, true);
-            }
+            if (success) return;
           }
-        });
-
-      } catch (err) {
-        console.warn(`通道 (${useProxy ? 'Proxy' : 'Direct'}) 連線失敗:`, err);
-        if (!useProxy) {
-          // 直連失敗，秒切 Proxy 備援
-          fetchCurrentTripSheet(true, true);
-        } else {
-          statusEl.innerHTML = `
-            <span class="text-rose-500 font-medium block"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表。</span>
-            <p class="text-[10px] text-slate-400 mt-0.5">請確認試算表已設為「知道連結的人皆可檢視」</p>
-          `;
+        } catch (e) {
+          console.warn(`${item.name} 失敗:`, e);
         }
       }
+
+      // 🔴 帶有直連測試與診斷資訊的錯誤提示區塊
+      const directTestUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
+
+      statusEl.innerHTML = `
+        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs text-left space-y-2 w-full shadow-sm">
+          <p class="font-bold flex items-center gap-1.5 text-rose-700">
+            <i class="fa-solid fa-circle-exclamation text-base"></i> 無法讀取 Google 試算表資料
+          </p>
+          <p class="text-[11px] text-rose-600 leading-relaxed">
+            所有通道均連線失敗。請按下方按鈕測試試算表權限，若點擊後跳出 Google 登入畫面，表示試算表權限尚未設為「開放公開檢視」。
+          </p>
+          <div class="flex flex-wrap gap-2 pt-1">
+            <a href="${directTestUrl}" target="_blank" class="bg-indigo-600 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition text-xs inline-flex items-center gap-1">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> 點此一鍵測試 Google 試算表權限
+            </a>
+            <button onclick="fetchCurrentTripSheet(true)" class="bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg hover:bg-slate-300 transition text-xs">
+              <i class="fa-solid fa-rotate mr-1"></i>重新連線
+            </button>
+          </div>
+        </div>
+      `;
     }
 
     function recordAccessLog(studentName) {
@@ -712,4 +716,45 @@
         const target = groupedMap.get(s.rawName);
         if (!target.rawBdayNorm && s.rawBdayNorm) target.rawBdayNorm = s.rawBdayNorm;
         if ((!target.room || target.room === '未設定') && s.room) target.room = s.room;
-        if (target.total === 0 && s.total > 0) target
+        if (target.total === 0 && s.total > 0) target.total = s.total;
+
+        (s.deposits || []).forEach(d => {
+          if (d.status === "已收到") target.paid += d.amount;
+        });
+      });
+
+      let groupedList = Array.from(groupedMap.values());
+
+      if (search) {
+        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
+      }
+
+      document.getElementById('adminTotalCount').innerText = groupedList.length;
+
+      tbody.innerHTML = groupedList.map(s => {
+        const balance = Math.max(0, s.total - s.paid);
+        const hasViewed = viewedNames.has(s.rawName);
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
+            <td class="p-3">
+              ${hasViewed 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
+                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+            </td>
+            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${s.room}</span></td>
+            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
+            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 初始化載入
+    fetchCurrentTripSheet(false);
+  </script>
+</body>
+</html>
