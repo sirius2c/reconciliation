@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v3.3.0</title>
+  <title>樂團旅遊對帳系統 v3.4.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,9 +21,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.3.0 ⚡ 多期動態對帳版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.4.0 🧩 合併儲存格自動相容版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · Google Sheets 標準欄位對接 · 多期自動計算</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 自動填補合併儲存格 · SHA-256 加密防護</p>
         </div>
       </div>
 
@@ -61,8 +61,8 @@
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
-            <p class="font-bold">標準欄位對接提示</p>
-            <p class="mt-0.5 text-amber-700">請輸入學生姓名與生日進行登入對帳。</p>
+            <p class="font-bold">即時連線說明</p>
+            <p class="mt-0.5 text-amber-700">系統支援合併儲存格自動解析，請輸入學生姓名與生日進行登入對帳。</p>
           </div>
         </div>
 
@@ -153,13 +153,12 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v3.3.0-multi-stage</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v3.4.0-merged-cells</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 自動連動您的試算表設定 (可在此調整 gid 指向特定 Tab)
     const TRIPS_CONFIG = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
@@ -225,7 +224,7 @@
       Papa.parse(csvUrl, {
         download: true,
         header: true,
-        skipEmptyLines: true,
+        skipEmptyLines: false, // 設為 false，避免跳過因為合併儲存格出現的行
         complete: async function(results) {
           try {
             const rawRows = results.data;
@@ -234,46 +233,56 @@
               return;
             }
 
+            // 垂直向上填補 (Forward Fill) 狀態暫存變數
+            let lastStudentName = "";
+            let lastBirthday = "";
+            let lastRoom = "";
+            let lastTotal = 0;
+
             memoryStudents = await Promise.all(rawRows.map(async row => {
-              // 1. 抓取基本屬性
-              const name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
-              const bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString();
-              const normBday = normalizeDateString(bdayRaw);
+              // 1. 抓取欄位名稱
+              let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+              let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
+              let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
+              let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+
+              // 2. 向下填補機制 (Forward Fill)：如果當前行因為「合併儲存格」呈現空白，自動繼承上一列的值
+              if (name) lastStudentName = name; else name = lastStudentName;
+              if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
+              if (room) lastRoom = room; else room = lastRoom;
               
+              let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
+              if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
+
+              const normBday = normalizeDateString(bdayRaw);
               const nameHash = name ? await sha256(name) : '';
               const bdayHash = normBday ? await sha256(normBday) : '';
 
-              const room = row['分房(新)'] || row['分房'] || row['房型'] || '未設定';
-              const totalCost = Number((row['總費用'] || row['費用(個人)'] || row['費用'] || '0').toString().replace(/[^0-9]/g, '')) || 0;
-
-              // 2. 動態掃描多期繳費資訊 (如: 第一期金額, 第二期金額...)
+              // 3. 動態掃描多期金額
               const deposits = [];
               const allKeys = Object.keys(row);
 
-              // 尋找所有帶有 "金額" 或 "期" 的動態欄位
               allKeys.forEach(key => {
                 if (key.includes('金額') || (key.includes('第一期') && !key.includes('時間') && !key.includes('方式'))) {
                   const amtVal = Number((row[key] || '0').toString().replace(/[^0-9]/g, ''));
-                  if (amtVal > 0 || key.includes('第一期')) {
-                    // 尋找對應的匯款時間與方式標題
-                    const stageName = key.replace(/金額|匯款/g, '').trim() || "第一期金額";
-                    const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
-                    const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+                  const stageName = key.replace(/金額|匯款/g, '').trim() || "第一期金額";
+                  const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
+                  const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
 
-                    const timeVal = timeKey ? row[timeKey] : '';
-                    const methodVal = methodKey ? row[methodKey] : '';
+                  const timeVal = timeKey ? row[timeKey] : '';
+                  const methodVal = methodKey ? row[methodKey] : '';
 
+                  if (amtVal > 0 || timeVal || methodVal) {
                     deposits.push({
                       stage: stageName,
                       amount: amtVal,
-                      status: amtVal > 0 ? "已收到" : "待繳費",
+                      status: amtVal > 0 ? "已收到" : "待確認",
                       note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
                     });
                   }
                 }
               });
 
-              // 防呆 fallback
               if (deposits.length === 0) {
                 deposits.push({
                   stage: "第一期金額",
@@ -288,19 +297,19 @@
                 rawBdayNorm: normBday,
                 nameHash: nameHash,
                 birthdayHash: bdayHash,
-                room: room,
+                room: room || '未設定',
                 total: totalCost,
                 deposits: deposits
               };
             }));
 
-            // 過濾掉沒有姓名的無效資料
+            // 只過濾掉連填補後都完全沒有姓名的極端空白列
             memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
 
             localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
             localStorage.setItem(cacheTimeKey, now.toString());
 
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆資料 (含合併儲存格解析)</span>`;
           } catch(err) {
             console.error("解析錯誤:", err);
             statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>`;
