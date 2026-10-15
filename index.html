@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZZJHS樂團旅遊對帳系統 v3.6.0</title>
+  <title>樂團旅遊對帳系統 v3.7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- PapaParse CSV 自動解析庫 -->
@@ -21,9 +21,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.6.0 🔄 雙向生日換算對齊版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.7.0 🎯 多期金額欄位精確解析版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 自動將輸入換算為資料庫 YYYY/M/D 格式 · SHA-256 加密</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多期款項精確比對 · SHA-256 加密防護</p>
         </div>
       </div>
 
@@ -61,8 +61,8 @@
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
-            <p class="font-bold">生日輸入說明</p>
-            <p class="mt-0.5 text-amber-700">輸入 `20130803`，系統會自動換算為試算表資料庫格式 `2013/8/3` 進行精準對齊比對！</p>
+            <p class="font-bold">對帳查詢說明</p>
+            <p class="mt-0.5 text-amber-700">輸入學生姓名與生日即可連動查看各期繳費紀錄。</p>
           </div>
         </div>
 
@@ -153,7 +153,7 @@
     <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v3.6.0-db-match</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v3.7.0-exact-parse</strong></span>
       </div>
     </div>
   </footer>
@@ -179,258 +179,21 @@
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // 🔴 換算函式：不論輸入何種格式，統一換算為資料庫標準無補零格式（例如：2013/8/3）
     function normalizeDateString(str) {
       if (!str) return "";
       let s = str.toString().trim();
 
       let year = "", month = "", day = "";
 
-      // 1. 若為斜線、橫槓、點號分隔（如 2013/8/3、2013/08/03、2013-8-3）
       if (s.includes('/') || s.includes('-') || s.includes('.')) {
         const parts = s.split(/[/.\-]/);
         if (parts.length === 3) {
           year = parts[0];
-          month = parseInt(parts[1], 10).toString(); // 去除前導 0 (如 08 -> 8)
-          day = parseInt(parts[2], 10).toString();   // 去除前導 0 (如 03 -> 3)
+          month = parseInt(parts[1], 10).toString();
+          day = parseInt(parts[2], 10).toString();
         }
-      } 
-      // 2. 若為純數字輸入（如 20130803 或 201383）
-      else {
-        const digits = s.replace(/[^0-9]/g, '');
-        if (digits.length === 8) { // 20130803
-          year = digits.substring(0, 4);
-          month = parseInt(digits.substring(4, 6), 10).toString();
-          day = parseInt(digits.substring(6, 8), 10).toString();
-        } else if (digits.length === 7) { // 2013803 或 2013083
-          year = digits.substring(0, 4);
-          month = parseInt(digits.substring(4, 5), 10).toString();
-          day = parseInt(digits.substring(5), 10).toString();
-        }
-      }
-
-      if (year && month && day) {
-        return `${year}/${month}/${day}`; // 回傳完美的 2013/8/3 格式
-      }
-
-      return s;
-    }
-
-    let memoryStudents = [];
-    let currentTripKey = "hualien2027";
-    let currentUser = null;
-
-    function switchTrip() {
-      currentTripKey = document.getElementById('tripSelector').value;
-      const tripConfig = TRIPS_CONFIG[currentTripKey];
-      document.getElementById('currentTripBadge').innerText = `當前行程：${tripConfig.title}`;
-      
-      if (currentUser) logout();
-      fetchCurrentTripSheet(false);
-    }
-
-    function fetchCurrentTripSheet(forceRefresh = false) {
-      const statusEl = document.getElementById('syncStatus');
-      const tripConfig = TRIPS_CONFIG[currentTripKey];
-
-      const cacheKey = `trip_cache_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_${currentTripKey}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      const cachedTime = localStorage.getItem(cacheTimeKey);
-      const now = Date.now();
-
-      if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
-        memoryStudents = JSON.parse(cachedData);
-        const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
-        statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
-        return;
-      }
-
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取 Google 試算表...`;
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${tripConfig.spreadsheetId}/gviz/tq?tqx=out:csv&gid=${tripConfig.gid || 0}`;
-
-      Papa.parse(csvUrl, {
-        download: true,
-        header: true,
-        skipEmptyLines: false,
-        complete: async function(results) {
-          try {
-            const rawRows = results.data;
-            if (!rawRows || rawRows.length === 0) {
-              statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>連線成功，但表格無資料。</span>`;
-              return;
-            }
-
-            let lastStudentName = "";
-            let lastBirthday = "";
-            let lastRoom = "";
-            let lastTotal = 0;
-
-            memoryStudents = await Promise.all(rawRows.map(async row => {
-              let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
-              let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
-              let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
-              let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
-
-              // 向下填補 (Forward Fill)
-              if (name) lastStudentName = name; else name = lastStudentName;
-              if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
-              if (room) lastRoom = room; else room = lastRoom;
-              
-              let totalCost = Number(totalStr.replace(/[^0-9]/g, ''));
-              if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
-
-              // 將試算表中的生日換算為標準格式
-              const normBday = normalizeDateString(bdayRaw);
-              const nameHash = name ? await sha256(name) : '';
-              const bdayHash = normBday ? await sha256(normBday) : '';
-
-              const deposits = [];
-              const allKeys = Object.keys(row);
-
-              allKeys.forEach(key => {
-                if (key.includes('金額') || (key.includes('第一期') && !key.includes('時間') && !key.includes('方式'))) {
-                  const amtVal = Number((row[key] || '0').toString().replace(/[^0-9]/g, ''));
-                  const stageName = key.replace(/金額|匯款/g, '').trim() || "第一期金額";
-                  const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
-                  const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
-
-                  const timeVal = timeKey ? row[timeKey] : '';
-                  const methodVal = methodKey ? row[methodKey] : '';
-
-                  if (amtVal > 0 || timeVal || methodVal) {
-                    deposits.push({
-                      stage: stageName,
-                      amount: amtVal,
-                      status: amtVal > 0 ? "已收到" : "待確認",
-                      note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
-                    });
-                  }
-                }
-              });
-
-              if (deposits.length === 0) {
-                deposits.push({
-                  stage: "第一期金額",
-                  amount: 0,
-                  status: "待繳費",
-                  note: "暫無紀錄"
-                });
-              }
-
-              return {
-                rawName: name,
-                rawBdayNorm: normBday,
-                nameHash: nameHash,
-                birthdayHash: bdayHash,
-                room: room || '未設定',
-                total: totalCost,
-                deposits: deposits
-              };
-            }));
-
-            memoryStudents = memoryStudents.filter(s => s.rawName.length > 0);
-
-            localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
-            localStorage.setItem(cacheTimeKey, now.toString());
-
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆資料 (支援輸入換算比對)</span>`;
-          } catch(err) {
-            console.error("解析錯誤:", err);
-            statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>`;
-          }
-        },
-        error: function(err) {
-          console.error("下載 CSV 失敗:", err);
-          statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
-        }
-      });
-    }
-
-    async function execLogin() {
-      const rawName = (document.getElementById('studentName').value || "").trim();
-      const rawBdayInput = document.getElementById('studentBirthday').value;
-      
-      // 🔴 將家長輸入的生日自動換算為與試算表一致的 YYYY/M/D 格式 (例如 20130803 -> 2013/8/3)
-      const normInputBday = normalizeDateString(rawBdayInput);
-
-      if (!rawName || !normInputBday) {
-        alert("請輸入完整的學生姓名與生日！");
-        return;
-      }
-
-      if (!memoryStudents || memoryStudents.length === 0) {
-        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請先點擊下方按鈕重新載入。";
-        document.getElementById('loginError').classList.remove('hidden');
-        return;
-      }
-
-      const inputNameHash = await sha256(rawName);
-      const inputBdayHash = await sha256(normInputBday);
-
-      const user = memoryStudents.find(student => {
-        const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
-        const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
-        return isHashMatch || isTextMatch;
-      });
-
-      if (user) {
-        currentUser = user;
-        const tripConfig = TRIPS_CONFIG[currentTripKey];
-        
-        document.getElementById('loginError').classList.add('hidden');
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('dashboardSection').classList.remove('hidden');
-        document.getElementById('logoutBtn').classList.remove('hidden');
-
-        document.getElementById('userTripTag').innerText = tripConfig.title;
-        document.getElementById('displayName').innerText = rawName;
-        document.getElementById('displayRoom').innerText = user.room;
-        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
-
-        let paidTotal = 0;
-        const deposits = user.deposits || [];
-        
-        deposits.forEach(d => {
-          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
-        });
-
-        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
-        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
-
-        const container = document.getElementById('depositListContainer');
-        container.innerHTML = deposits.map(d => `
-          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-800">${d.stage}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
-              </div>
-              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
-            </div>
-            <div class="text-right">
-              <p class="text-xs text-slate-400">金額</p>
-              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
-            </div>
-          </div>
-        `).join('');
-
       } else {
-        document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對試算表資料。";
-        document.getElementById('loginError').classList.remove('hidden');
-      }
-    }
-
-    function logout() {
-      currentUser = null;
-      document.getElementById('loginSection').classList.remove('hidden');
-      document.getElementById('dashboardSection').classList.add('hidden');
-      document.getElementById('logoutBtn').classList.add('hidden');
-      document.getElementById('loginForm').reset();
-    }
-
-    // 初始化載入
-    fetchCurrentTripSheet(false);
-  </script>
-</body>
-</html>
+        const digits = s.replace(/[^0-9]/g, '');
+        if (digits.length === 8) {
+          year = digits.substring(0, 4);
+          month = parseInt(digits.substring(4
