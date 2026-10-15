@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>樂團旅遊對帳系統 v2.3.1</title>
+  <title>樂團旅遊對帳與存取監控系統 v2.3.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.3.1 🔒 穩定安全版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v2.3.2 🔒 登入完全修復版</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · 匿名隱私防護</p>
+          <p class="text-indigo-200 text-xs">家長對帳 · 多期訂金支援 · 存取監控 · 匿名隱私防護</p>
         </div>
       </div>
 
@@ -54,6 +54,13 @@
           當前行程：2027 寒假花蓮旅行
         </span>
         
+        <!-- 一鍵測試登入提示按鈕 -->
+        <div class="mt-3">
+          <button type="button" onclick="fillTestAccount()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium px-3 py-1.5 rounded-lg border border-indigo-200 transition">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 一鍵填入測試帳號 (學生A)
+          </button>
+        </div>
+
         <!-- 對帳資料更新時間警告提示 -->
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base mt-0.5 shrink-0"></i>
@@ -67,7 +74,7 @@
         <p class="text-slate-500 text-sm mt-1">請輸入學生姓名與生日進行登入</p>
       </div>
 
-      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+      <form id="loginForm" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">學生姓名</label>
           <input type="text" id="studentName" placeholder="例如：學生A" required
@@ -82,11 +89,11 @@
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
           <p><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
           <button type="button" onclick="clearSystemCache()" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>如果確定輸入無誤，請點此「重置系統快取」
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>重置系統快取
           </button>
         </div>
 
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-md transition duration-200">
+        <button type="button" onclick="execLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-md transition duration-200">
           核對並登入
         </button>
       </form>
@@ -149,7 +156,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="bg-indigo-500 text-xs px-2.5 py-1 rounded-full font-medium">幹部管理後台</span>
-            <span class="text-slate-400 text-xs font-mono">Build v2.3.1-stable</span>
+            <span class="text-slate-400 text-xs font-mono">Build v2.3.2-fix</span>
           </div>
           <h2 class="text-2xl font-bold mt-2">存取 Monitor 與資料管理專區</h2>
         </div>
@@ -166,4 +173,348 @@
         <button onclick="switchAdminTab('sync')" id="tabSync" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-700">
           <i class="fa-solid fa-database mr-1"></i> 資料更新專區 (JSON)
         </button>
-        <button onclick="switchAdminTab('logs')" id="tabLogs" class="py-2.5 px-4 font-semibold text-slate-500 hover:text-slate-
+      </div>
+
+      <!-- 分頁 1：未查看團員名單 -->
+      <div id="adminTabUnviewed" class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-lg text-slate-800">尚未查看/登入對帳系統之學生</h3>
+            <p class="text-sm text-slate-500">方便幹部追蹤誰還沒有確認過金額</p>
+          </div>
+          <div class="text-right">
+            <span class="text-2xl font-bold text-amber-600" id="unviewedCount">0</span>
+            <span class="text-sm text-slate-500">/ <span id="totalStudentsCount">0</span> 人未查看</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-slate-600 border-b">
+              <tr>
+                <th class="py-3 px-4">學生姓名</th>
+                <th class="py-3 px-4">房型</th>
+                <th class="py-3 px-4">應繳總額</th>
+                <th class="py-3 px-4">已繳期數摘要</th>
+                <th class="py-3 px-4">狀態</th>
+              </tr>
+            </thead>
+            <tbody id="unviewedTableBody" class="divide-y">
+              <!-- JS 動態渲染 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 分頁 2：更新資料 -->
+      <div id="adminTabSync" class="hidden bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="font-bold text-lg text-slate-800">手動更新本行程資料庫</h3>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">對帳更新時間標記</label>
+          <input type="text" id="updatedTimeInput" placeholder="例如：2026/10/12 20:00" class="w-full text-sm p-2.5 border rounded-lg mb-3">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">JSON 資料格式</label>
+          <textarea id="importJsonInput" rows="8" class="w-full font-mono text-xs p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="貼上 JSON 資料..."></textarea>
+        </div>
+
+        <div class="flex gap-3">
+          <button onclick="applyDataUpdate()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-5 py-2.5 rounded-lg font-medium shadow transition">
+            <i class="fa-solid fa-floppy-disk mr-1.5"></i> 儲存並發布更新
+          </button>
+          <button onclick="resetToDefaultData()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-4 py-2.5 rounded-lg transition">
+            重設為預設資料
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer 頁尾版本資訊 -->
+  <footer class="bg-slate-100 border-t border-slate-200 text-slate-500 text-xs py-4 text-center mt-auto">
+    <div class="max-w-5xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
+      <p>© 樂團家長後援會 旅遊帳務核對系統</p>
+      <div class="flex items-center gap-3">
+        <span>系統版本：<strong class="text-slate-700 font-mono">v2.3.2-fix</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 幹部登入 Modal -->
+  <div id="adminLoginModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+      <h3 class="font-bold text-lg text-slate-800">幹部身份驗證</h3>
+      <input type="password" id="adminPassword" placeholder="請輸入管理員密碼" class="w-full px-3 py-2 border rounded-lg outline-none">
+      <div id="adminLoginError" class="hidden text-xs text-rose-500">密碼錯誤，請重新輸入。</div>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeAdminLoginModal()" class="px-4 py-2 text-sm text-slate-500">取消</button>
+        <button onclick="loginAdmin()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg">登入後台</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 預設匿名示範資料
+    const anonymizedHualienStudents = [
+      { name: "學生A", birthday: ["2013/1/1", "20130101"], room: "三人房1", total: 12340, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "轉帳完成" }] },
+      { name: "學生B", birthday: ["2013/2/2", "20130202"], room: "四人房1", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "刷卡完成" }] },
+      { name: "學生C", birthday: ["2013/3/3", "20130303"], room: "二人房1", total: 25314, deposits: [{ stage: "第一期訂金", amount: 0, status: "待確認", note: "尚未對到帳" }] },
+      { name: "學生D", birthday: ["2013/4/4", "20130404"], room: "三人房2", total: 12340, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "轉帳完成" }] },
+      { name: "學生E", birthday: ["2013/5/5", "20130505"], room: "四人房2", total: 11507, deposits: [{ stage: "第一期訂金", amount: 5000, status: "已收到", note: "轉帳完成" }] }
+    ];
+
+    const defaultTripsDB = {
+      hualien2027: {
+        title: "2027 寒假花蓮旅行",
+        lastUpdated: "2026/10/12 20:00",
+        students: anonymizedHualienStudents
+      },
+      vienna2027: {
+        title: "2027 暑假維也納音樂節",
+        lastUpdated: "2026/10/14 18:00",
+        students: [
+          {
+            name: "王小明",
+            birthday: ["2012/05/15", "20120515"],
+            room: "雙人房",
+            total: 128000,
+            deposits: [
+              { stage: "第一期訂金", amount: 30000, status: "已收到", note: "2026/05/10 轉帳" },
+              { stage: "第二期款", amount: 40000, status: "已收到", note: "2026/08/15 轉帳" },
+              { stage: "三期尾款", amount: 58000, status: "待繳費", note: "請於 2026/11/30 前完成繳納" }
+            ]
+          },
+          {
+            name: "張小華",
+            birthday: ["2012/08/20", "20120820"],
+            room: "三人房",
+            total: 122000,
+            deposits: [
+              { stage: "第一期訂金", amount: 30000, status: "已收到", note: "2026/05/12 轉帳" },
+              { stage: "第二期款", amount: 40000, status: "待繳費", note: "已逾期請盡速補繳" },
+              { stage: "三期尾款", amount: 52000, status: "待繳費", note: "-" }
+            ]
+          }
+        ]
+      }
+    };
+
+    let tripsDB = defaultTripsDB;
+    try {
+      const saved = localStorage.getItem('orchestra_trips_db');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.hualien2027 && parsed.hualien2027.students) {
+          tripsDB = parsed;
+        }
+      }
+    } catch(e) {
+      tripsDB = defaultTripsDB;
+    }
+
+    let currentTripKey = "hualien2027";
+    let currentUser = null;
+
+    function initUI() {
+      const trip = tripsDB[currentTripKey];
+      if (trip) {
+        document.getElementById('currentTripBadge').innerText = `當前行程：${trip.title}`;
+        document.getElementById('lastUpdatedTime').innerText = trip.lastUpdated || "2026/10/12 20:00";
+      }
+    }
+
+    function switchTrip() {
+      currentTripKey = document.getElementById('tripSelector').value;
+      initUI();
+      if (currentUser) logout();
+    }
+
+    function fillTestAccount() {
+      document.getElementById('studentName').value = "學生A";
+      document.getElementById('studentBirthday').value = "20130101";
+      document.getElementById('loginError').classList.add('hidden');
+    }
+
+    function clearSystemCache() {
+      localStorage.clear();
+      tripsDB = defaultTripsDB;
+      initUI();
+      alert('已成功清空快取與重設資料，請重新嘗試登入！');
+      document.getElementById('loginError').classList.add('hidden');
+    }
+
+    function normalizeStr(str) {
+      return (str || "").toString().trim().toLowerCase().replace(/[-/ \t]/g, "");
+    }
+
+    function execLogin() {
+      const nameInput = (document.getElementById('studentName').value || "").trim();
+      const bdayInput = normalizeStr(document.getElementById('studentBirthday').value);
+
+      if (!nameInput || !bdayInput) {
+        alert("請輸入完整的姓名與生日！");
+        return;
+      }
+
+      const trip = tripsDB[currentTripKey];
+      if (!trip || !trip.students) {
+        document.getElementById('loginError').classList.remove('hidden');
+        return;
+      }
+
+      const user = trip.students.find(student => {
+        const isNameMatch = student.name.trim() === nameInput;
+        const isBdayMatch = student.birthday.some(b => normalizeStr(b) === bdayInput);
+        return isNameMatch && isBdayMatch;
+      });
+
+      if (user) {
+        currentUser = user;
+        
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        document.getElementById('userTripTag').innerText = trip.title;
+        document.getElementById('displayName').innerText = user.name;
+        document.getElementById('displayRoom').innerText = user.room;
+        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
+
+        let paidTotal = 0;
+        const deposits = user.deposits || [{ stage: "訂金", amount: user.deposit || 0, status: user.deposit > 0 ? "已收到" : "待繳費", note: user.depositNote || "" }];
+        
+        deposits.forEach(d => {
+          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
+        });
+
+        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
+        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
+
+        const container = document.getElementById('depositListContainer');
+        container.innerHTML = deposits.map(d => `
+          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800">${d.stage}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄說明：${d.note}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-slate-400">應繳金額</p>
+              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
+            </div>
+          </div>
+        `).join('');
+
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    // Admin Functions
+    function openAdminLoginModal() { document.getElementById('adminLoginModal').classList.remove('hidden'); }
+    function closeAdminLoginModal() { document.getElementById('adminLoginModal').classList.add('hidden'); }
+
+    function loginAdmin() {
+      const pwd = document.getElementById('adminPassword').value;
+      if (pwd === "admin123") {
+        closeAdminLoginModal();
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+        renderAdminData();
+      } else {
+        document.getElementById('adminLoginError').classList.remove('hidden');
+      }
+    }
+
+    function closeAdminSection() {
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderAdminData() {
+      const trip = tripsDB[currentTripKey];
+      const students = trip.students || [];
+
+      document.getElementById('totalStudentsCount').innerText = students.length;
+      document.getElementById('unviewedCount').innerText = students.length;
+
+      const unviewedBody = document.getElementById('unviewedTableBody');
+      unviewedBody.innerHTML = students.map(s => {
+        const deposits = s.deposits || [];
+        const paidCount = deposits.filter(d => d.status === "已收到").length;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-semibold text-slate-800">${s.name}</td>
+            <td class="py-3 px-4 text-slate-600">${s.room}</td>
+            <td class="py-3 px-4">NT$ ${Number(s.total || 0).toLocaleString()}</td>
+            <td class="py-3 px-4"><span class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded">已完成 ${paidCount} / ${deposits.length || 1} 期</span></td>
+            <td class="py-3 px-4"><span class="text-xs bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full font-medium">尚未登入查看</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('updatedTimeInput').value = trip.lastUpdated || "2026/10/12 20:00";
+      document.getElementById('importJsonInput').value = JSON.stringify(students, null, 2);
+    }
+
+    function applyDataUpdate() {
+      try {
+        const inputVal = document.getElementById('importJsonInput').value;
+        const timeVal = document.getElementById('updatedTimeInput').value.trim();
+        const parsedData = JSON.parse(inputVal);
+        
+        tripsDB[currentTripKey].students = parsedData;
+        if(timeVal) tripsDB[currentTripKey].lastUpdated = timeVal;
+
+        localStorage.setItem('orchestra_trips_db', JSON.stringify(tripsDB));
+        alert('資料已成功更新並儲存發布！');
+        initUI();
+        renderAdminData();
+      } catch (e) {
+        alert('格式不符，請輸入正確的 JSON 格式資料！');
+      }
+    }
+
+    function resetToDefaultData() {
+      if (confirm('確定要恢復原先預設資料嗎？')) {
+        tripsDB = defaultTripsDB;
+        localStorage.removeItem('orchestra_trips_db');
+        initUI();
+        renderAdminData();
+        alert('已恢復預設資料！');
+      }
+    }
+
+    function switchAdminTab(tab) {
+      document.getElementById('adminTabUnviewed').classList.add('hidden');
+      document.getElementById('adminTabSync').classList.add('hidden');
+
+      if (tab === 'unviewed') {
+        document.getElementById('adminTabUnviewed').classList.remove('hidden');
+      } else if (tab === 'sync') {
+        document.getElementById('adminTabSync').classList.remove('hidden');
+      }
+    }
+
+    // 初始化頁面
+    initUI();
+  </script>
+</body>
+</html>
