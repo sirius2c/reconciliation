@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZZJHS樂團旅遊對帳與管理系統 v3.9.0</title>
+  <title>ZZJHS樂團旅遊對帳系統 v4.0.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- PapaParse CSV 自動解析庫 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800 flex flex-col justify-between">
@@ -21,19 +20,17 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">ZZJHS樂團旅遊帳務與查詢系統</h1>
-            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v3.9.0 🎛️ 雙模整合版</span>
+            <span class="bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v4.0.0</span>
           </div>
-          <p class="text-indigo-200 text-xs">家長對帳 · 幹部管理面板</p>
+          <p class="text-indigo-200 text-xs">家長對帳</p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <!-- 模式切換按鈕 -->
         <button id="adminToggleBtn" onclick="openAdminModal()" class="bg-indigo-800 hover:bg-indigo-900 text-indigo-100 text-xs px-3 py-2 rounded-lg border border-indigo-500/50 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-user-gear"></i> <span>管理登入</span>
+          <i class="fa-solid fa-user-gear"></i> <span>幹部後台</span>
         </button>
 
-        <!-- 行程選擇器 -->
         <div class="relative">
           <select id="tripSelector" onchange="switchTrip()" class="bg-indigo-800 text-white text-sm px-3 py-2 pr-8 rounded-lg border border-indigo-500 focus:outline-none focus:ring-2 focus:ring-white">
             <option value="hualien2027" selected>2027 寒假花蓮旅行</option>
@@ -57,12 +54,10 @@
           當前行程：2027 寒假花蓮旅行
         </span>
 
-        <!-- 自動快取/同步狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
           <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線讀取試算表資料...</div>
         </div>
         
-        <!-- 對帳資料即時性說明提示 -->
         <div class="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-left flex items-start gap-2.5 shadow-sm">
           <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
           <div>
@@ -110,7 +105,6 @@
         </div>
       </div>
 
-      <!-- 金額概覽總卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-slate-500 text-sm">行程應繳總費用</p>
@@ -126,16 +120,13 @@
         </div>
       </div>
 
-      <!-- 多期訂金/分期收款明細專區 -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center justify-between">
           <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細紀錄</span>
           <span class="text-xs text-slate-400 font-normal">分期繳費狀態</span>
         </h3>
         
-        <div id="depositListContainer" class="space-y-3">
-          <!-- JS 動態渲染多期明細卡片 -->
-        </div>
+        <div id="depositListContainer" class="space-y-3"></div>
       </div>
 
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -151,13 +142,13 @@
       </div>
     </div>
 
-    <!-- 3. 幹部後台管理面板 (預設隱藏) -->
+    <!-- 3. 幹部後台管理面板 -->
     <div id="adminSection" class="hidden space-y-6">
       <div class="bg-slate-900 text-white rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div>
           <span class="bg-amber-500 text-slate-900 font-bold text-xs px-2.5 py-1 rounded">幹部管理模式</span>
-          <h2 class="text-2xl font-bold mt-2">樂團財務與行程管理後台</h2>
-          <p class="text-slate-400 text-xs mt-1">監視同步狀態、調整對應 Google 試算表設定與查看全團總覽</p>
+          <h2 class="text-2xl font-bold mt-2">樂團財務與存取監控後台</h2>
+          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 管理試算表對接</p>
         </div>
         <div class="flex gap-2">
           <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
@@ -169,31 +160,38 @@
         </div>
       </div>
 
-      <!-- 試算表網址設定 -->
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-indigo-600"></i> 當前行程試算表參數設定
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Google 試算表 ID</label>
-            <input type="text" id="adminSheetId" class="w-full px-3 py-2 border rounded-lg bg-slate-50 font-mono text-xs">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">對帳 Tab 分頁 GID</label>
-            <input type="text" id="adminGid" class="w-full px-3 py-2 border rounded-lg bg-slate-50 font-mono text-xs">
+      <!-- 未查看家長追蹤卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 左卡片：家長存取紀錄 Log -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
+            <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空 Log</button>
+          </h3>
+          <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y">
+            <!-- JS 動態渲染歷史 Log -->
           </div>
         </div>
-        <button onclick="saveAdminConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition">
-          儲存並更新此行程參數
-        </button>
+
+        <!-- 右卡片：未查看團員名單 -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>未查看/未對帳團員名單 (<span id="unviewedCount">0</span> 人)</span>
+            <button onclick="copyUnviewedList()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded hover:bg-indigo-100 font-medium">
+              <i class="fa-solid fa-copy mr-1"></i>複製提醒名單
+            </button>
+          </h3>
+          <div id="unviewedStudentList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto text-xs">
+            <!-- JS 動態渲染未對帳學生標籤 -->
+          </div>
+        </div>
       </div>
 
       <!-- 全團學員帳務清單總覽 -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
           <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態清單 (<span id="adminTotalCount">0</span> 筆)
+            <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態總覽 (<span id="adminTotalCount">0</span> 筆)
           </h3>
           <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
             class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
@@ -204,12 +202,12 @@
             <thead class="bg-slate-100 text-slate-700 font-semibold border-b">
               <tr>
                 <th class="p-3">學生姓名</th>
+                <th class="p-3">對帳狀態</th>
                 <th class="p-3">生日 (換算)</th>
                 <th class="p-3">分房</th>
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">已繳總額</th>
                 <th class="p-3">剩餘尾款</th>
-                <th class="p-3">第一期備註</th>
               </tr>
             </thead>
             <tbody id="adminStudentTbody" class="divide-y divide-slate-100">
@@ -240,23 +238,21 @@
     </div>
   </div>
 
-  <!-- Footer 頁尾版本資訊 -->
   <footer class="bg-slate-100 border-t border-slate-200 text-slate-500 text-xs py-4 text-center mt-auto">
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v3.9.0-admin-integrated</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v4.0.0-access-log</strong></span>
       </div>
     </div>
   </footer>
 
   <script>
-    // 🔴 每個行程對應的 Google 試算表配置表
     const TRIPS_CONFIG = {
       hualien2027: {
         title: "2027 寒假花蓮旅行",
         spreadsheetId: "1V_bPwW3LrEd4NnqEv9S1PqF2GtizkffJzKehPNspPYM", 
-        gid: "1199818390" // 連接到「收款明細-latest」分頁
+        gid: "1199818390"
       },
       vienna2027: {
         title: "2027 暑假維也納音樂節",
@@ -265,9 +261,7 @@
       }
     };
 
-    // 🔴 幹部登入預設密碼 (可自行修改)
     const ADMIN_PASSWORD = "admin123";
-
     const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
 
     async function sha256(str) {
@@ -336,7 +330,7 @@
           if (memoryStudents && memoryStudents.length > 0) {
             const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
             statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
-            if (isAdminMode) renderAdminStudentTable();
+            if (isAdminMode) renderAdminDashboard();
             return;
           }
         } catch(e) {
@@ -450,7 +444,7 @@
 
             statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功同步 ${memoryStudents.length} 筆資料</span>`;
             
-            if (isAdminMode) renderAdminStudentTable();
+            if (isAdminMode) renderAdminDashboard();
           } catch(err) {
             console.error("解析錯誤:", err);
             statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>資料解析失敗。</span>`;
@@ -463,6 +457,25 @@
           statusEl.innerHTML = `<span class="text-rose-500 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」。</span>`;
         }
       });
+    }
+
+    // 🔴 記錄家長登入存取紀錄 Log
+    function recordAccessLog(studentName) {
+      const logKey = `access_log_${currentTripKey}`;
+      let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      
+      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
+      
+      // 新增日誌
+      logs.unshift({
+        name: studentName,
+        time: nowStr
+      });
+
+      // 最多保存 100 筆 Log
+      if (logs.length > 100) logs = logs.slice(0, 100);
+
+      localStorage.setItem(logKey, JSON.stringify(logs));
     }
 
     async function execLogin() {
@@ -494,6 +507,9 @@
         currentUser = user;
         const tripConfig = TRIPS_CONFIG[currentTripKey];
         
+        // 寫入登入紀錄 Log
+        recordAccessLog(rawName);
+
         document.getElementById('loginError').classList.add('hidden');
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('dashboardSection').classList.remove('hidden');
@@ -562,17 +578,11 @@
         isAdminMode = true;
         closeAdminModal();
         
-        // 隱藏家長區，顯示後台
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('dashboardSection').classList.add('hidden');
         document.getElementById('adminSection').classList.remove('hidden');
 
-        // 帶入目前參數
-        const tripConfig = TRIPS_CONFIG[currentTripKey];
-        document.getElementById('adminSheetId').value = tripConfig.spreadsheetId;
-        document.getElementById('adminGid').value = tripConfig.gid;
-
-        renderAdminStudentTable();
+        renderAdminDashboard();
       } else {
         alert("密碼不正確！");
       }
@@ -584,22 +594,87 @@
       document.getElementById('loginSection').classList.remove('hidden');
     }
 
-    function saveAdminConfig() {
-      const newSheetId = document.getElementById('adminSheetId').value.trim();
-      const newGid = document.getElementById('adminGid').value.trim();
+    // 渲染幹部後台四大功能（包含 Log、未查看名單）
+    function renderAdminDashboard() {
+      renderAccessLogs();
+      renderUnviewedStudents();
+      renderAdminStudentTable();
+    }
 
-      if (newSheetId && newGid) {
-        TRIPS_CONFIG[currentTripKey].spreadsheetId = newSheetId;
-        TRIPS_CONFIG[currentTripKey].gid = newGid;
-        alert("參數已更新，系統將為您重新讀取試算表！");
-        fetchCurrentTripSheet(true);
+    // 1. 渲染家長存取紀錄 Log
+    function renderAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const container = document.getElementById('accessLogList');
+
+      if (logs.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
+        return;
+      }
+
+      container.innerHTML = logs.map(l => `
+        <div class="py-1.5 flex justify-between items-center">
+          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
+          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
+        </div>
+      `).join('');
+    }
+
+    function clearAccessLogs() {
+      if (confirm("確定要清空家長存取 Log 紀錄嗎？")) {
+        localStorage.removeItem(`access_log_${currentTripKey}`);
+        renderAccessLogs();
+        renderUnviewedStudents();
       }
     }
 
+    // 2. 比對並渲染未查看團員名單
+    let currentUnviewedNames = [];
+    function renderUnviewedStudents() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const allNames = memoryStudents.map(s => s.rawName);
+      currentUnviewedNames = Array.from(new Set(allNames)).filter(name => !viewedNames.has(name));
+
+      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
+      const container = document.getElementById('unviewedStudentList');
+
+      if (currentUnviewedNames.length === 0) {
+        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團家長皆已進入系統查看過帳務。</span>`;
+        return;
+      }
+
+      container.innerHTML = currentUnviewedNames.map(name => `
+        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
+          ${name}
+        </span>
+      `).join('');
+    }
+
+    // 複製提醒文字至剪貼簿
+    function copyUnviewedList() {
+      if (currentUnviewedNames.length === 0) {
+        alert("目前全團家長皆已完成查看，無需發送提醒！");
+        return;
+      }
+
+      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
+      });
+    }
+
+    // 3. 渲染全團總覽表格
     function renderAdminStudentTable() {
       const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
       const tbody = document.getElementById('adminStudentTbody');
       
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
       let filtered = memoryStudents;
       if (search) {
         filtered = memoryStudents.filter(s => s.rawName.toLowerCase().includes(search));
@@ -611,17 +686,21 @@
         let paid = 0;
         (s.deposits || []).forEach(d => { if (d.status === "已收到") paid += d.amount; });
         const balance = Math.max(0, s.total - paid);
-        const firstNote = s.deposits && s.deposits[0] ? s.deposits[0].note : '無';
+        const hasViewed = viewedNames.has(s.rawName);
 
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
+            <td class="p-3">
+              ${hasViewed 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
+                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+            </td>
             <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
             <td class="p-3">${s.room}</td>
             <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
             <td class="p-3 text-emerald-600 font-bold">NT$ ${paid.toLocaleString()}</td>
             <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
-            <td class="p-3 text-slate-400 truncate max-w-[150px]">${firstNote}</td>
           </tr>
         `;
       }).join('');
