@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.8.0</title>
+  <title>中正弦樂團旅遊對帳系統 v5.8.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.0 雙階段完全對齊版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.2 界面優化版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -140,9 +140,11 @@
               <span class="font-bold text-amber-900 text-base">第二期</span>
               <span id="stage2PaidBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">待繳費/對帳中</span>
             </div>
+            <!-- 方案 A：隱藏固定金額標籤，顯示親切引導文字 -->
             <div class="text-right">
-              <p class="text-xs text-amber-800/70">第二期應繳金額</p>
-              <p class="text-xl font-bold text-amber-700">NT$ <span id="stage2AmtDisplay">10,000</span></p>
+              <span class="text-xs text-amber-800/80 bg-amber-100/80 px-2.5 py-1 rounded-md font-medium">
+                <i class="fa-solid fa-pen-to-square mr-1"></i>請於下方填寫匯款資料
+              </span>
             </div>
           </div>
 
@@ -215,9 +217,79 @@
       </div>
     </div>
 
+    <!-- 3. 幹部後台管理面板 -->
+    <div id="adminSection" class="hidden space-y-6">
+      <div class="bg-slate-900 text-white rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+        <div>
+          <span class="bg-amber-500 text-slate-900 font-bold text-xs px-2.5 py-1 rounded">幹部管理模式</span>
+          <h2 class="text-2xl font-bold mt-2">樂團財務與存取監控後台</h2>
+          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 精確學生對帳總覽</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
+            <i class="fa-solid fa-rotate mr-1"></i> 強制刷新全站資料
+          </button>
+          <button onclick="closeAdminPanel()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-4 py-2.5 rounded-lg transition">
+            返回家長查詢區
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
+            <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空前端 Log</button>
+          </h3>
+          <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y"></div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>未查看/未對帳學生名單 (<span id="unviewedCount">0</span> 人)</span>
+            <button onclick="copyUnviewedList()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded hover:bg-indigo-100 font-medium">
+              <i class="fa-solid fa-copy mr-1"></i>複製提醒名單
+            </button>
+          </h3>
+          <div id="unviewedStudentList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto text-xs"></div>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
+          <div>
+            <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態總覽 (<span id="adminTotalCount">0</span> 名團員)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">已自動過濾家屬列，精確歸納展出正式團員</p>
+          </div>
+          <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
+            class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left text-slate-600">
+            <thead class="bg-slate-100 text-slate-700 font-semibold border-b">
+              <tr>
+                <th class="p-3">學生姓名</th>
+                <th class="p-3">查看狀態</th>
+                <th class="p-3">生日 (換算)</th>
+                <th class="p-3">房型/房間</th>
+                <th class="p-3">應繳總額</th>
+                <th class="p-3">已繳總額</th>
+                <th class="p-3">第一期對帳</th>
+                <th class="p-3">第二期對帳</th>
+              </tr>
+            </thead>
+            <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
 
-  <!-- 幹部後台 Modal -->
+  <!-- 幹部登入 Modal -->
   <div id="adminModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4">
       <div class="text-center">
@@ -239,7 +311,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.0-aligned</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.2-clean-ui</strong></span>
       </div>
     </div>
   </footer>
@@ -257,6 +329,12 @@
     function cleanRoomName(roomStr) {
       if (!roomStr) return '未設定';
       return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
+    }
+
+    function isFamilyMemberName(name) {
+      if (!name) return true;
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
+      return familyKeywords.some(kw => name.includes(kw));
     }
 
     async function sha256(str) {
@@ -298,6 +376,7 @@
     let memoryStudents = [];
     let currentTripKey = "hualien2027";
     let currentUser = null;
+    let isAdminMode = false;
 
     function switchTrip() {
       currentTripKey = document.getElementById('tripSelector').value;
@@ -334,7 +413,7 @@
         const nameHash = name ? await sha256(name) : '';
         const bdayHash = normBday ? await sha256(normBday) : '';
 
-        // 🔴 第一期家長回報資訊 (Col G~J)
+        // 第一期家長回報資訊 (Col G~J)
         const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
         const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
         const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
@@ -349,7 +428,7 @@
           deposit1 = Number(row[exactAmtKey1].toString().replace(/[^0-9]/g, '')) || 0;
         }
 
-        // 🔴 第二期家長回報資訊 (Col O~R)
+        // 第二期家長回報資訊 (Col O~R)
         const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
         const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
         const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
@@ -390,6 +469,8 @@
 
       const statusEl = document.getElementById('syncStatus');
       statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功從 GAS 雲端同步 ${memoryStudents.length} 筆對帳資料</span>`;
+      
+      if (isAdminMode) renderAdminDashboard();
       return true;
     }
 
@@ -420,6 +501,27 @@
       }
     }
 
+    function recordAccessLog(studentName) {
+      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
+      const logKey = `access_log_${currentTripKey}`;
+      let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      logs.unshift({ name: studentName, time: nowStr });
+      if (logs.length > 100) logs = logs.slice(0, 100);
+      localStorage.setItem(logKey, JSON.stringify(logs));
+
+      try {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            studentName: studentName,
+            tripTitle: TRIPS_CONFIG[currentTripKey].title,
+            userAgent: navigator.userAgent
+          })
+        }).catch(err => {});
+      } catch(e) {}
+    }
+
     async function execLogin() {
       const rawName = (document.getElementById('studentName').value || "").trim();
       const rawBdayInput = document.getElementById('studentBirthday').value;
@@ -447,6 +549,8 @@
 
       if (user) {
         currentUser = user;
+        recordAccessLog(rawName);
+
         document.getElementById('loginError').classList.add('hidden');
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('dashboardSection').classList.remove('hidden');
@@ -475,7 +579,7 @@
       document.getElementById('displayDepositTotal').innerText = totalPaid.toLocaleString();
       document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - totalPaid).toLocaleString();
 
-      // 🔴【動態渲染 第一期卡片】 (區分 已核銷 vs 待繳費填寫)
+      // 第一期卡片動態渲染
       const stage1Card = document.getElementById('stage1Card');
       const hasReport1 = currentUser.payDate1 || currentUser.payLast5_1 || currentUser.payAmt1;
 
@@ -488,7 +592,7 @@
               <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">已收到</span>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-400">第一期金額</p>
+              <p class="text-xs text-slate-400">第一期已收金額</p>
               <p class="text-xl font-bold text-slate-800">NT$ ${dep1.toLocaleString()}</p>
             </div>
           </div>
@@ -508,9 +612,11 @@
               <span class="font-bold text-amber-900 text-base">第一期</span>
               <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">待繳費/對帳中</span>
             </div>
+            <!-- 方案 A：顯示引導提示文字，不寫死金額 -->
             <div class="text-right">
-              <p class="text-xs text-amber-800/70">第一期應繳金額</p>
-              <p class="text-xl font-bold text-amber-700">NT$ ${dep1.toLocaleString()}</p>
+              <span class="text-xs text-amber-800/80 bg-amber-100/80 px-2.5 py-1 rounded-md font-medium">
+                <i class="fa-solid fa-pen-to-square mr-1"></i>請於下方填寫匯款資料
+              </span>
             </div>
           </div>
 
@@ -572,7 +678,7 @@
         `;
       }
 
-      // 🔴 第二期卡片處理 (Col O~R & V)
+      // 第二期卡片處理
       const colV = currentUser.confirmColV || '尚未確認';
       document.getElementById('stage2ConfirmBadge').innerText = colV;
       
@@ -602,7 +708,6 @@
       }
     }
 
-    // 通用寫回 (支援 第一期/第二期)
     async function submitStagePayment(stageName) {
       if (!currentUser || !currentUser.rawName) return;
 
@@ -680,6 +785,171 @@
       } catch (err) {
         alert("連線發送失敗！");
       }
+    }
+
+    // 幹部後台完整邏輯
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      document.getElementById('adminPasswordInput').value = "";
+      document.getElementById('adminPasswordInput').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    function verifyAdminPassword() {
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === ADMIN_PASSWORD) {
+        isAdminMode = true;
+        closeAdminModal();
+        
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+
+        renderAdminDashboard();
+      } else {
+        alert("密碼不正確！預設密碼為 admin123");
+      }
+    }
+
+    function closeAdminPanel() {
+      isAdminMode = false;
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderAdminDashboard() {
+      renderAccessLogs();
+      renderUnviewedStudents();
+      renderAdminStudentTable();
+    }
+
+    function renderAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const container = document.getElementById('accessLogList');
+
+      if (logs.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
+        return;
+      }
+
+      container.innerHTML = logs.map(l => `
+        <div class="py-1.5 flex justify-between items-center">
+          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
+          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
+        </div>
+      `).join('');
+    }
+
+    function clearAccessLogs() {
+      if (confirm("確定要清空前端 Log 紀錄嗎？")) {
+        localStorage.removeItem(`access_log_${currentTripKey}`);
+        renderAccessLogs();
+        renderUnviewedStudents();
+      }
+    }
+
+    let currentUnviewedNames = [];
+    function renderUnviewedStudents() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const studentOnlyNames = memoryStudents
+        .filter(s => !isFamilyMemberName(s.rawName))
+        .map(s => s.rawName);
+
+      currentUnviewedNames = Array.from(new Set(studentOnlyNames)).filter(name => !viewedNames.has(name));
+
+      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
+      const container = document.getElementById('unviewedStudentList');
+
+      if (currentUnviewedNames.length === 0) {
+        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團學生家長皆已進入系統查看過帳務。</span>`;
+        return;
+      }
+
+      container.innerHTML = currentUnviewedNames.map(name => `
+        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
+          ${name}
+        </span>
+      `).join('');
+    }
+
+    function copyUnviewedList() {
+      if (currentUnviewedNames.length === 0) {
+        alert("目前全團家長皆已完成查看，無需發送提醒！");
+        return;
+      }
+
+      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
+      });
+    }
+
+    function renderAdminStudentTable() {
+      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
+      const tbody = document.getElementById('adminStudentTbody');
+      
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const cleanStudents = memoryStudents.filter(s => !isFamilyMemberName(s.rawName));
+      const groupedMap = new Map();
+
+      cleanStudents.forEach(s => {
+        if (!groupedMap.has(s.rawName)) {
+          groupedMap.set(s.rawName, {
+            rawName: s.rawName,
+            rawBdayNorm: s.rawBdayNorm,
+            room: cleanRoomName(s.room),
+            total: s.total,
+            confirmColN: s.confirmColN || '未確認',
+            confirmColV: s.confirmColV || '未確認',
+            paid: Number(s.deposit1 || 0) + Number(s.deposit2 || 0)
+          });
+        }
+      });
+
+      let groupedList = Array.from(groupedMap.values());
+
+      if (search) {
+        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
+      }
+
+      document.getElementById('adminTotalCount').innerText = groupedList.length;
+
+      tbody.innerHTML = groupedList.map(s => {
+        const hasViewed = viewedNames.has(s.rawName);
+
+        let nBadge = "bg-slate-100 text-slate-600";
+        if (s.confirmColN.includes("已確認") || s.confirmColN.includes("無誤")) nBadge = "bg-emerald-100 text-emerald-700 font-bold";
+
+        let vBadge = "bg-slate-100 text-slate-600";
+        if (s.confirmColV.includes("已確認") || s.confirmColV.includes("無誤")) vBadge = "bg-emerald-100 text-emerald-700 font-bold";
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
+            <td class="p-3">
+              ${hasViewed 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
+                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+            </td>
+            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${cleanRoomName(s.room)}</span></td>
+            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${nBadge}">${s.confirmColN}</span></td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${vBadge}">${s.confirmColV}</span></td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function logout() {
