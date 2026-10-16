@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.6.1</title>
+  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.7.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1 class="text-base md:text-lg font-bold leading-tight">中正弦樂團 - 合作旅行社帳務系統</h1>
-          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (含家長回報匯款資訊可視版)</p>
+          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (第一期精準核銷 + 第二期家長回報對照版)</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@
           <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="vTotalAmount">0</span></p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-emerald-100 bg-emerald-50/20 shadow-sm">
-          <p class="text-emerald-700 text-xs font-medium">家長已確認/已回報</p>
+          <p class="text-emerald-700 text-xs font-medium">第二期已確認/已回報</p>
           <p class="text-2xl font-bold text-emerald-600 mt-1"><span id="vConfirmedCount">0</span> 人</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-rose-100 bg-rose-50/20 shadow-sm">
@@ -96,23 +96,23 @@
         </div>
       </div>
 
-      <!-- 學員對帳狀態總表 (包含家長填寫的匯款資訊) -->
+      <!-- 學員對帳狀態總表 -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4">
           <div>
             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-amber-500"></i> 家長對帳與匯款回報明細清單
+              <i class="fa-solid fa-list-check text-amber-500"></i> 第一期完成核銷 & 第二期家長匯款回報清單
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">即時同步 Google 試算表 (包含家長填寫之日期、金額與帳號末五碼)</p>
+            <p class="text-xs text-slate-400 mt-0.5">第一期金額（Col I 廠商已收）｜ 第二期家長填寫資料（Col K~N）｜ 第二期對帳狀態（Col R）</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
             <select id="vFilterStatus" onchange="renderVendorTable()" class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50">
               <option value="all" selected>顯示全部狀態</option>
-              <option value="reported">僅顯示：家長已填寫回報</option>
-              <option value="confirmed">僅顯示：家長已確認</option>
-              <option value="issue">僅顯示：匯款有問題</option>
-              <option value="unconfirmed">僅顯示：尚未確認/未回報</option>
+              <option value="reported">僅顯示：第二期已填寫回報</option>
+              <option value="confirmed">僅顯示：第二期家長已確認</option>
+              <option value="issue">僅顯示：第二期有問題</option>
+              <option value="unconfirmed">僅顯示：第二期未回報</option>
             </select>
 
             <input type="text" id="vSearchInput" oninput="renderVendorTable()" placeholder="搜尋學生姓名..." 
@@ -129,11 +129,11 @@
             <thead class="bg-slate-100 text-slate-700 font-bold border-b">
               <tr>
                 <th class="p-3">學生姓名</th>
-                <th class="p-3">對帳狀態 (Col R)</th>
-                <th class="p-3">家長填寫匯款資訊 (Col K~N)</th>
                 <th class="p-3">房型/房間</th>
                 <th class="p-3">應繳總額</th>
-                <th class="p-3">第一期已收</th>
+                <th class="p-3">第一期已收 (Col I)</th>
+                <th class="p-3">第二期家長匯款回報 (Col K~N)</th>
+                <th class="p-3">第二期對帳狀態 (Col R)</th>
                 <th class="p-3">剩餘尾款</th>
               </tr>
             </thead>
@@ -157,7 +157,7 @@
 
     function cleanRoomName(roomStr) {
       if (!roomStr) return '未設定';
-      return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
+      return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-％]+$/g, '').trim() || '未設定';
     }
 
     function isFamilyMemberName(name) {
@@ -223,23 +223,27 @@
         const room = cleanRoomName(row['分房(新)'] || row['分房'] || row['房型']);
         const total = Number((row['總費用'] || row['費用'] || '0').toString().replace(/[^0-9]/g, ''));
 
-        // 第一期與第二期的確認狀態與家長填寫資料
-        const confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
-        const confirmColR = (row['第二期金額家長確認'] || row['第二期確認'] || confirmColJ || '尚未確認').toString().trim();
-
-        // 讀取家長上傳填寫的匯款細節 (第二期 Col K, L, M, N，兼顧第一期備援)
-        const payMethod = (row['第二期家長回報匯款方式'] || row['家長回報匯款方式'] || row['匯款方式'] || '').toString().trim();
-        const payDate = (row['第二期家長回報匯款日期'] || row['家長回報匯款日期'] || row['匯款日期'] || '').toString().trim();
-        const payLast5 = (row['第二期家長回報帳號後五碼'] || row['家長回報帳號後五碼'] || row['帳號後五碼'] || '').toString().trim();
-        const payAmt = (row['第二期家長回報匯款金額'] || row['家長回報匯款金額'] || row['匯款金額'] || '').toString().trim();
-
-        // 第一期已收金額 (Col H)
+        // 🔴 第一期已收金額 (Col I)：精準鎖定 Col I (第一期廠商收款金額)
         let deposit1 = 0;
         const allKeys = Object.keys(row);
-        const amtKey = allKeys.find(k => (k.includes('一期') || k.includes('訂金')) && (k.includes('金額') || k.includes('款')) && !k.includes('確認') && !k.includes('日期') && !k.includes('帳號') && !k.includes('方式'));
-        if (amtKey && row[amtKey]) {
-          deposit1 = Number(row[amtKey].toString().replace(/[^0-9]/g, '')) || 0;
+        const amtKey1 = allKeys.find(k => k.includes('第一期') && (k.includes('廠商') || k.includes('收款') || k.includes('金額')) && !k.includes('家長') && !k.includes('確認') && !k.includes('日期') && !k.includes('帳號') && !k.includes('方式'));
+        
+        if (amtKey1 && row[amtKey1]) {
+          deposit1 = Number(row[amtKey1].toString().replace(/[^0-9]/g, '')) || 0;
+        } else {
+          // 備援比對
+          const fallbackKey = allKeys.find(k => k.includes('第一期') && k.includes('金額') && !k.includes('家長'));
+          if (fallbackKey) deposit1 = Number((row[fallbackKey] || '0').toString().replace(/[^0-9]/g, '')) || 0;
         }
+
+        // 🔴 第二期家長填寫的回報資訊 (Col K, L, M, N)
+        const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
+        const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
+        const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
+        const payAmt2 = (row['第二期家長回報匯款金額'] || '').toString().trim();
+
+        // 🔴 第二期對帳狀態 (Col R)
+        const confirmColR = (row['第二期金額家長確認'] || row['第二期確認'] || '尚未確認').toString().trim();
 
         if (!studentMap.has(name)) {
           studentMap.set(name, {
@@ -247,11 +251,11 @@
             room: room,
             total: total,
             deposit1: deposit1,
-            confirmColR: confirmColR,
-            payMethod: payMethod,
-            payDate: payDate,
-            payLast5: payLast5,
-            payAmt: payAmt
+            payMethod2: payMethod2,
+            payDate2: payDate2,
+            payLast5_2: payLast5_2,
+            payAmt2: payAmt2,
+            confirmColR: confirmColR
           });
         }
       });
@@ -288,12 +292,12 @@
         const matchSearch = s.name.toLowerCase().includes(search);
         
         let matchFilter = true;
-        const hasReported = s.payDate || s.payLast5 || s.payAmt;
+        const hasReported2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
 
-        if (filter === 'reported') matchFilter = hasReported;
+        if (filter === 'reported') matchFilter = hasReported2;
         if (filter === 'confirmed') matchFilter = s.confirmColR.includes("已確認") || s.confirmColR.includes("無誤");
         if (filter === 'issue') matchFilter = s.confirmColR.includes("有問題");
-        if (filter === 'unconfirmed') matchFilter = !s.confirmColR.includes("已確認") && !s.confirmColR.includes("有問題") && !hasReported;
+        if (filter === 'unconfirmed') matchFilter = !s.confirmColR.includes("已確認") && !s.confirmColR.includes("有問題") && !hasReported2;
 
         return matchSearch && matchFilter;
       });
@@ -310,34 +314,39 @@
           badgeClass = "bg-indigo-100 text-indigo-800 font-bold border border-indigo-300";
         }
 
-        const hasReport = s.payDate || s.payLast5 || s.payAmt;
+        const hasReport2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
 
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="p-3 font-bold text-slate-800">${s.name}</td>
-            <td class="p-3"><span class="px-2.5 py-1 rounded-md text-[11px] ${badgeClass}">${s.confirmColR}</span></td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
+            <td class="p-3 font-medium">NT$ ${s.total.toLocaleString()}</td>
             
-            <!-- 🔴 呈現家長上傳的回報資訊 (Col K~N) -->
+            <!-- 🟢 第一期已收 (Col I) -->
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit1.toLocaleString()}</td>
+
+            <!-- 🔴 第二期家長匯款回報資訊 (Col K~N) -->
             <td class="p-3">
-              ${hasReport ? `
+              ${hasReport2 ? `
                 <div class="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs space-y-0.5">
                   <div class="flex items-center gap-1.5 font-bold text-indigo-900">
-                    <span class="bg-indigo-200 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded">${s.payMethod || '轉帳/ATM'}</span>
-                    <span>${s.payDate || '未填日期'}</span>
+                    <span class="bg-indigo-200 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded">${s.payMethod2 || '轉帳/ATM'}</span>
+                    <span>${s.payDate2 || '未填日期'}</span>
                   </div>
-                  <div class="text-slate-700 flex gap-2">
-                    <span>金額：<strong class="text-indigo-700">NT$ ${Number(s.payAmt || 0).toLocaleString()}</strong></span>
-                    <span>帳號末五碼：<strong class="font-mono text-slate-900">${s.payLast5 || '--'}</strong></span>
+                  <div class="text-slate-700 flex gap-2 mt-0.5">
+                    <span>金額：<strong class="text-indigo-700">NT$ ${Number(s.payAmt2 || 0).toLocaleString()}</strong></span>
+                    <span>帳號末五碼：<strong class="font-mono text-slate-900">${s.payLast5_2 || '--'}</strong></span>
                   </div>
                 </div>
               ` : `
-                <span class="text-slate-400 italic text-[11px]"><i class="fa-solid fa-clock-pulse mr-1"></i>家長尚未填寫回報</span>
+                <span class="text-slate-400 italic text-[11px]"><i class="fa-solid fa-clock-pulse mr-1"></i>第二期家長尚未填寫回報</span>
               `}
             </td>
 
-            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
-            <td class="p-3 font-medium">NT$ ${s.total.toLocaleString()}</td>
-            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit1.toLocaleString()}</td>
+            <!-- 🔴 第二期對帳狀態 (Col R) -->
+            <td class="p-3"><span class="px-2.5 py-1 rounded-md text-[11px] ${badgeClass}">${s.confirmColR}</span></td>
+
+            <!-- 剩餘尾款 -->
             <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
           </tr>
         `;
