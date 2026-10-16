@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.9.0</title>
+  <title>中正弦樂團旅遊對帳系統 v5.9.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.9.0 雙引擎診斷版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.9.1 穩定連線版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -71,7 +71,7 @@
           <i class="fa-solid fa-circle-info text-indigo-600 text-base mt-0.5 shrink-0"></i>
           <div>
             <p class="font-bold">家長對帳查詢說明</p>
-            <p class="mt-0.5 text-indigo-700">生日可輸入 `20130803` 或 `2013/8/3`，系統會自動換算核對。</p>
+            <p class="mt-0.5 text-indigo-700">生日可輸入 <code>20130803</code> 或 <code>2013/8/3</code>，系統會自動換算核對。</p>
           </div>
         </div>
 
@@ -249,7 +249,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.9.0-dual-engine</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.9.1-fixed</strong></span>
       </div>
     </div>
   </footer>
@@ -312,6 +312,13 @@
       return s;
     }
 
+    function formatInputDate(str) {
+      if (!str) return "";
+      let s = str.toString().trim();
+      if (s.includes('T')) return s.split('T')[0];
+      return s;
+    }
+
     let memoryStudents = [];
     let currentTripKey = "hualien2027";
     let currentUser = null;
@@ -360,7 +367,7 @@
 
         // 第一期家長回報與確認 (Col G~J, N)
         const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
-        const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
+        const payDate1 = formatInputDate(row['第一期家長回報匯款日期'] || '');
         const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
         const payAmt1 = (row['第一期家長回報匯款金額'] || '').toString().trim();
         const confirmColN = (row['第一期金額家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
@@ -375,7 +382,7 @@
 
         // 第二期家長回報與確認 (Col O~R, V)
         const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
-        const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
+        const payDate2 = formatInputDate(row['第二期家長回報匯款日期'] || '');
         const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
         const payAmt2 = (row['第二期家長回報匯款金額'] || '').toString().trim();
         const confirmColV = (row['第二期金額家長確認'] || row['第二期確認'] || '尚未確認').toString().trim();
@@ -418,18 +425,23 @@
       return true;
     }
 
-    // 🔴 雙引擎連線（Fetch + JSONP 超時降級處理）
-    async function fetchCurrentTripSheet(forceRefresh = false) {
+    // 穩定連線引擎（支援 GAS 冷啟動 25 秒超時與自動重試）
+    async function fetchCurrentTripSheet(forceRefresh = false, retryCount = 0) {
       const statusEl = document.getElementById('syncStatus');
-      statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span>[1/3] 正在向 GAS 雲端發送連線請求...</span></div>`;
+      statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span>[1/3] 正在向 GAS 雲端發送連線請求${retryCount > 0 ? ` (第 ${retryCount + 1} 次嘗試)` : ''}...</span></div>`;
 
       const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&action=getData&_t=${Date.now()}`;
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6秒逾時自動中止
+        // GAS 首次喚醒讀取試算表約需 8~15 秒，設定 25 秒超時避免誤殺正常連線
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-        const res = await fetch(fetchUrl, { redirect: "follow", signal: controller.signal });
+        const res = await fetch(fetchUrl, {
+          method: "GET",
+          redirect: "follow",
+          signal: controller.signal
+        });
         clearTimeout(timeoutId);
 
         if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
@@ -451,47 +463,19 @@
           throw new Error(resultJson.message || "GAS 回傳 JSON 格式未符合預期");
         }
       } catch (err) {
-        console.warn("Fetch 引擎失敗，切換至 JSONP 備用連線引擎:", err.message);
-        statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-amber-600"></i><span>[1/3] 標準連線受阻，正在切換 JSONP 備用引擎...</span></div>`;
-        
-        fetchWithJSONP(fetchUrl);
-      }
-    }
-
-    // JSONP 備用連線引擎
-    function fetchWithJSONP(baseUrl) {
-      const statusEl = document.getElementById('syncStatus');
-      const callbackName = 'gasCallback_' + Date.now();
-      
-      const script = document.createElement('script');
-      script.src = `${baseUrl}&callback=${callbackName}`;
-
-      window[callbackName] = function(resultJson) {
-        delete window[callbackName];
-        document.body.removeChild(script);
-
-        if (resultJson && resultJson.status === "success" && Array.isArray(resultJson.data)) {
-          const success = processRawRows(resultJson.data);
-          if (!success) {
-            statusEl.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>JSONP 連線成功，但無有效資料。</span>`;
-          }
+        console.warn("Fetch 連線異常:", err.message);
+        if (retryCount < 1) {
+          statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-amber-600"></i><span>[1/3] 雲端喚醒中，正在自動重試連線...</span></div>`;
+          setTimeout(() => fetchCurrentTripSheet(forceRefresh, retryCount + 1), 1500);
         } else {
-          statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>JSONP 解析失敗: ${resultJson.message || '無回應資料'}</span>`;
+          statusEl.innerHTML = `
+            <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-center font-medium">
+              <i class="fa-solid fa-circle-exclamation text-rose-600 mr-1"></i> 雲端連線逾時或受阻（${err.message}），請點擊重試。
+              <button onclick="fetchCurrentTripSheet(true, 0)" class="ml-2 underline text-indigo-600 font-bold">立即重試</button>
+            </div>
+          `;
         }
-      };
-
-      script.onerror = function() {
-        delete window[callbackName];
-        document.body.removeChild(script);
-        statusEl.innerHTML = `
-          <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-center font-medium">
-            <i class="fa-solid fa-circle-exclamation text-rose-600 mr-1"></i> 雙引擎連線皆失敗，請點擊「強迫重新同步」按鈕或檢查網路連線。
-            <button onclick="fetchCurrentTripSheet(true)" class="ml-2 underline text-indigo-600 font-bold">重試</button>
-          </div>
-        `;
-      };
-
-      document.body.appendChild(script);
+      }
     }
 
     function recordAccessLog(studentName) {
@@ -526,7 +510,7 @@
       }
 
       if (!memoryStudents || memoryStudents.length === 0) {
-        document.getElementById('loginErrorText').innerText = "系統尚未連線成功，請點擊「強制重新同步」按鈕。";
+        document.getElementById('loginErrorText').innerText = "系統尚未連線成功，請稍候或點擊「強制重新同步」按鈕。";
         document.getElementById('loginError').classList.remove('hidden');
         return;
       }
@@ -644,7 +628,7 @@
 
             ${hasReport1 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
               </div>
             ` : ''}
 
@@ -748,7 +732,7 @@
 
             ${hasReport2 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
               </div>
             ` : ''}
 
