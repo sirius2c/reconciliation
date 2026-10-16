@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.2.0</title>
+  <title>中正弦樂團旅遊對帳系統 v5.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.2.0 ⚡ 帶超時診斷防卡版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.3.0 ✍️ 家長確認雙向寫回版</span>
           </div>
-          <p class="hidden sm:block text-indigo-200 text-xs">家長對帳 · GAS API 雲端整合 · 自動寫回對帳 Log</p>
+          <p class="hidden sm:block text-indigo-200 text-xs">家長對帳 · GAS API 雙向互動 · 自動寫回 J 欄確認狀態</p>
         </div>
       </div>
 
@@ -120,6 +120,7 @@
         </div>
       </div>
 
+      <!-- 繳費明細與家長寫回確認卡片 -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center justify-between">
           <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細紀錄</span>
@@ -203,7 +204,7 @@
                 <th class="p-3">房型/房間</th>
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">已繳總額</th>
-                <th class="p-3">剩餘尾款</th>
+                <th class="p-3">第一期家長確認</th>
               </tr>
             </thead>
             <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
@@ -236,7 +237,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.2.0-gas-timeout-protected</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.3.0-colJ-writeback</strong></span>
       </div>
     </div>
   </footer>
@@ -326,6 +327,9 @@
         let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
         let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
         let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+        
+        // 🟢 抓取 J 欄：第一期金額家長確認欄位
+        let confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '').toString().trim();
 
         room = cleanRoomName(room);
 
@@ -345,7 +349,7 @@
 
         const amountKeys = allKeys.filter(key => {
           const isAmount = key.includes('金額') || key.includes('期款');
-          const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註');
+          const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註') && !key.includes('確認');
           return isAmount && isNotMeta;
         });
 
@@ -385,6 +389,7 @@
           birthdayHash: bdayHash,
           room: room || '未設定',
           total: totalCost,
+          confirmColJ: confirmColJ,
           deposits: deposits
         };
       }));
@@ -393,8 +398,8 @@
 
       if (memoryStudents.length === 0) return false;
 
-      const cacheKey = `trip_cache_v5_2_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_2_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_3_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_3_${currentTripKey}`;
       localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
       localStorage.setItem(cacheTimeKey, Date.now().toString());
 
@@ -405,12 +410,11 @@
       return true;
     }
 
-    // 🔴 帶有 5 秒硬性超時防護的 GAS 抓取函式
     async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
 
-      const cacheKey = `trip_cache_v5_2_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_2_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_3_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_3_${currentTripKey}`;
       const cachedData = localStorage.getItem(cacheKey);
       const cachedTime = localStorage.getItem(cacheTimeKey);
       const now = Date.now();
@@ -432,7 +436,6 @@
 
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
 
-      // 設定 5 秒強制斷線 Controller
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -451,23 +454,65 @@
         }
       } catch (err) {
         clearTimeout(timeoutId);
-        console.error("GAS 連線失敗細節:", err);
+        console.error("GAS 連線失敗:", err);
 
         let errMsg = err.name === "AbortError" ? "連線逾時 (超過 5 秒無回應)" : err.message;
 
         statusEl.innerHTML = `
           <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left space-y-1.5 w-full">
             <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-rose-600"></i> GAS API 連線失敗：${errMsg}</p>
-            <p class="text-[10px] text-rose-600 leading-relaxed">
-              若在桌面 Chrome 測試，請按 <b>F12 ➔ Console</b> 查看是否有 CORS 錯誤。若是，請確認 GAS 管理部署的「誰有存取權」已設為 <b>「所有人 (Anyone)」</b>。
-            </p>
-            <div class="pt-1 flex gap-2">
-              <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs">
-                <i class="fa-solid fa-rotate mr-1"></i>重試連線
-              </button>
-            </div>
+            <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs mt-1">
+              <i class="fa-solid fa-rotate mr-1"></i>重試連線
+            </button>
           </div>
         `;
+      }
+    }
+
+    // 🔴 寫回 Col J「第一期金額家長確認」的觸發函式
+    async function sendDepositConfirmation(statusValue) {
+      if (!currentUser || !currentUser.rawName) {
+        alert("請先完成團員身分驗證！");
+        return;
+      }
+
+      const btn1 = document.getElementById('btnConfirmOk');
+      const btn2 = document.getElementById('btnConfirmErr');
+      if (btn1) btn1.disabled = true;
+      if (btn2) btn2.disabled = true;
+
+      const statusEl = document.getElementById('confirmStatusNotice');
+      if (statusEl) statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>正在將確認結果寫回 Google 試算表...`;
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "confirmDeposit",
+            studentName: currentUser.rawName,
+            status: statusValue
+          })
+        });
+
+        const result = await res.json();
+        if (result.status === "success") {
+          alert(`已成功更新對帳狀態：${statusValue}`);
+          // 重新整理資料，同步顯示最新 J 欄狀態
+          await fetchCurrentTripSheet(true);
+          // 重新載入當前使用者面板
+          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
+          if (freshUser) currentUser = freshUser;
+          renderUserDashboard();
+        } else {
+          alert(`寫回失敗：${result.message}`);
+        }
+      } catch (err) {
+        alert("連線發送失敗，請確認網路狀態後重試！");
+        console.error("寫回失敗:", err);
+      } finally {
+        if (btn1) btn1.disabled = false;
+        if (btn2) btn2.disabled = false;
       }
     }
 
@@ -489,14 +534,8 @@
             tripTitle: TRIPS_CONFIG[currentTripKey].title,
             userAgent: navigator.userAgent
           })
-        }).then(r => r.json()).then(data => {
-          console.log("Log 成功寫回 Google 試算表:", data);
-        }).catch(err => {
-          console.warn("寫回 Log 失敗:", err);
-        });
-      } catch(e) {
-        console.warn("發送 Log 請求失敗", e);
-      }
+        }).then(r => r.json()).catch(err => console.warn("寫回 Log 失敗:", err));
+      } catch(e) {}
     }
 
     async function execLogin() {
@@ -526,8 +565,6 @@
 
       if (user) {
         currentUser = user;
-        const tripConfig = TRIPS_CONFIG[currentTripKey];
-        
         recordAccessLog(rawName);
 
         document.getElementById('loginError').classList.add('hidden');
@@ -535,42 +572,83 @@
         document.getElementById('dashboardSection').classList.remove('hidden');
         document.getElementById('logoutBtn').classList.remove('hidden');
 
-        document.getElementById('userTripTag').innerText = tripConfig.title;
-        document.getElementById('displayName').innerText = rawName;
-        document.getElementById('displayRoom').innerText = cleanRoomName(user.room);
-        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
-
-        let paidTotal = 0;
-        const deposits = user.deposits || [];
-        
-        deposits.forEach(d => {
-          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
-        });
-
-        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
-        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
-
-        const container = document.getElementById('depositListContainer');
-        container.innerHTML = deposits.map(d => `
-          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-800">${d.stage}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
-              </div>
-              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
-            </div>
-            <div class="text-right">
-              <p class="text-xs text-slate-400">金額</p>
-              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
-            </div>
-          </div>
-        `).join('');
-
+        renderUserDashboard();
       } else {
         document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對試算表資料。";
         document.getElementById('loginError').classList.remove('hidden');
       }
+    }
+
+    // 渲染家長查詢結果面板
+    function renderUserDashboard() {
+      if (!currentUser) return;
+
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      document.getElementById('userTripTag').innerText = tripConfig.title;
+      document.getElementById('displayName').innerText = currentUser.rawName;
+      document.getElementById('displayRoom').innerText = cleanRoomName(currentUser.room);
+      document.getElementById('displayTotal').innerText = Number(currentUser.total || 0).toLocaleString();
+
+      let paidTotal = 0;
+      const deposits = currentUser.deposits || [];
+      
+      deposits.forEach(d => {
+        if (d.status === "已收到") paidTotal += Number(d.amount || 0);
+      });
+
+      document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
+      document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - paidTotal).toLocaleString();
+
+      const container = document.getElementById('depositListContainer');
+      
+      // 渲染第一期款項卡片（帶家長確認按鈕與 J 欄狀態）
+      container.innerHTML = deposits.map((d, index) => {
+        const isFirstStage = index === 0 || d.stage.includes("第一期") || d.stage.includes("訂金");
+        const currentJStatus = currentUser.confirmColJ || "尚未確認";
+
+        let confirmBadgeClass = "bg-slate-100 text-slate-600";
+        if (currentJStatus.includes("已確認") || currentJStatus.includes("無誤")) {
+          confirmBadgeClass = "bg-emerald-100 text-emerald-800 font-bold border border-emerald-300";
+        } else if (currentJStatus.includes("有問題") || currentJStatus.includes("異常")) {
+          confirmBadgeClass = "bg-rose-100 text-rose-800 font-bold border border-rose-300";
+        }
+
+        return `
+          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-800">${d.stage}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-slate-400">金額</p>
+                <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            ${isFirstStage ? `
+              <div class="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-slate-700"><i class="fa-solid fa-pen-to-square text-indigo-600 mr-1"></i>家長金額核對狀態：</span>
+                  <span class="px-2.5 py-1 rounded-md text-[11px] ${confirmBadgeClass}">${currentJStatus}</span>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                  <button id="btnConfirmOk" onclick="sendDepositConfirmation('家長已確認')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
+                    <i class="fa-solid fa-circle-check"></i> 金額無誤
+                  </button>
+                  <button id="btnConfirmErr" onclick="sendDepositConfirmation('匯款有問題')" class="bg-rose-600 hover:bg-rose-700 text-white font-medium px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
+                    <i class="fa-solid fa-triangle-exclamation"></i> 匯款有問題
+                  </button>
+                </div>
+              </div>
+              <div id="confirmStatusNotice" class="text-[11px] text-slate-400"></div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
     function logout() {
@@ -702,6 +780,7 @@
             rawBdayNorm: s.rawBdayNorm,
             room: cleanRoomName(s.room),
             total: s.total,
+            confirmColJ: s.confirmColJ || '未確認',
             paid: 0
           });
         }
@@ -728,6 +807,13 @@
         const balance = Math.max(0, s.total - s.paid);
         const hasViewed = viewedNames.has(s.rawName);
 
+        let jBadge = "bg-slate-100 text-slate-600";
+        if (s.confirmColJ.includes("已確認") || s.confirmColJ.includes("無誤")) {
+          jBadge = "bg-emerald-100 text-emerald-700 font-bold";
+        } else if (s.confirmColJ.includes("有問題")) {
+          jBadge = "bg-rose-100 text-rose-700 font-bold";
+        }
+
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
@@ -740,7 +826,7 @@
             <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${cleanRoomName(s.room)}</span></td>
             <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
             <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
-            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${jBadge}">${s.confirmColJ}</span></td>
           </tr>
         `;
       }).join('');
@@ -748,42 +834,6 @@
 
     // 初始化載入
     fetchCurrentTripSheet(false);
-// 發送家長確認/回報問題寫回 Google 試算表 Col J
-async function sendDepositConfirmation(statusValue) {
-  if (!currentUser || !currentUser.rawName) {
-    alert("請先登入團員身分！");
-    return;
-  }
-
-  const confirmBtn = document.getElementById('submitConfirmBtn');
-  if (confirmBtn) confirmBtn.disabled = true;
-
-  try {
-    const response = await fetch(GAS_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "confirmDeposit",
-        studentName: currentUser.rawName,
-        status: statusValue
-      })
-    });
-
-    const result = await response.json();
-    if (result.status === "success") {
-      alert(`已成功寫回試算表：${statusValue}`);
-      // 重新整理資料快取
-      fetchCurrentTripSheet(true);
-    } else {
-      alert(`寫回失敗：${result.message}`);
-    }
-  } catch (err) {
-    alert("連線發送失敗，請稍後重試。");
-    console.error(err);
-  } finally {
-    if (confirmBtn) confirmBtn.disabled = false;
-  }
-}
   </script>
 </body>
 </html>
