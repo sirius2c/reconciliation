@@ -738,7 +738,7 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款方式 (Col O)</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款方式</label>
                 <select id="payMethod_2" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                   <option value="網路銀行/ATM" ${currentUser.payMethod2 === '網路銀行/ATM' ? 'selected' : ''}>網路銀行/ATM</option>
                   <option value="刷卡" ${currentUser.payMethod2 === '刷卡' ? 'selected' : ''}>刷卡</option>
@@ -747,15 +747,15 @@
                 </select>
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款日期 (Col P)</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款日期</label>
                 <input type="date" id="payDate_2" value="${currentUser.payDate2 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">帳號末五碼 (Col Q)</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">帳號末五碼</label>
                 <input type="text" id="payLast5_2" value="${currentUser.payLast5_2 || ''}" maxlength="5" placeholder="5位數字" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款金額 (Col R)</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款金額</label>
                 <input type="number" id="payAmt_2" value="${currentUser.payAmt2 || ''}" placeholder="例如：10000" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
             </div>
