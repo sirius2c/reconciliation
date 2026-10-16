@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.8.4</title>
+  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.8.5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1 class="text-base md:text-lg font-bold leading-tight">中正弦樂團 - 合作旅行社帳務系統</h1>
-          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (第一期 Col G~N & 第二期 Col O~V 對齊版)</p>
+          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (包含 Col N & Col V 家長對帳確認狀態)</p>
         </div>
       </div>
 
@@ -76,7 +76,6 @@
 
     <!-- 2. 廠商對帳面板 Dashboard -->
     <div id="vendorDashboard" class="hidden space-y-6">
-      <!-- 統計摘要區塊 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-slate-400 text-xs font-medium">團員人數 (排除家屬)</p>
@@ -101,16 +100,16 @@
         <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4">
           <div>
             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-amber-500"></i> 第一期與第二期雙階段家長匯款回報核對清單
+              <i class="fa-solid fa-list-check text-amber-500"></i> 第一期與第二期家長匯款回報 & 對帳確認 (Col N / Col V)
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">第一期：Col G~J 回報 / Col M 廠商入帳 | 第二期：Col O~R 回報 / Col U 廠商入帳</p>
+            <p class="text-xs text-slate-400 mt-0.5">第一期：Col G~J 回報 / Col M 廠商入帳 / Col N 確認 | 第二期：Col O~R 回報 / Col U 廠商入帳 / Col V 確認</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
             <select id="vFilterStatus" onchange="renderVendorTable()" class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50">
               <option value="all" selected>顯示全部學員</option>
-              <option value="reported1">僅顯示：第一期家長已填寫回報</option>
-              <option value="reported2">僅顯示：第二期家長已填寫回報</option>
+              <option value="reported1">僅顯示：第一期家長已回報/確認</option>
+              <option value="reported2">僅顯示：第二期家長已回報/確認</option>
               <option value="issue">僅顯示：對帳有問題</option>
             </select>
 
@@ -132,8 +131,10 @@
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">第一期家長回報 (Col G~J)</th>
                 <th class="p-3">第一期已收 (Col M)</th>
+                <th class="p-3">第一期對帳 (Col N)</th>
                 <th class="p-3">第二期家長回報 (Col O~R)</th>
                 <th class="p-3">第二期已收 (Col U)</th>
+                <th class="p-3">第二期對帳 (Col V)</th>
                 <th class="p-3">剩餘尾款</th>
               </tr>
             </thead>
@@ -146,7 +147,7 @@
   </main>
 
   <footer class="bg-white border-t border-slate-200 text-slate-400 text-xs py-4 text-center">
-    © 中正弦樂團家長後援會 & 合作旅行社帳務對接系統 v5.8.4
+    © 中正弦樂團家長後援會 & 合作旅行社帳務對接系統 v5.8.5
   </footer>
 
   <script>
@@ -223,7 +224,7 @@
         const room = cleanRoomName(row['分房(新)'] || row['分房'] || row['房型']);
         const total = Number((row['總費用'] || row['費用'] || '0').toString().replace(/[^0-9]/g, ''));
 
-        // 🔴 第一期家長回報資料 (Col G~J)
+        // 第一期家長回報與確認 (Col G~J, N)
         const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
         const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
         const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
@@ -238,7 +239,7 @@
           deposit1 = Number(row[exactAmtKey1].toString().replace(/[^0-9]/g, '')) || 0;
         }
 
-        // 🔴 第二期家長回報資料 (Col O~R)
+        // 第二期家長回報與確認 (Col O~R, V)
         const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
         const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
         const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
@@ -287,7 +288,7 @@
         const hasReport1 = s.payDate1 || s.payLast5_1 || s.payAmt1;
         const hasReport2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
         
-        if (hasReport1 || hasReport2 || s.confirmColN.includes("已確認") || s.confirmColV.includes("已確認")) {
+        if (hasReport1 || hasReport2 || s.confirmColN.includes("已") || s.confirmColV.includes("已")) {
           confirmedCount++;
         }
         if (s.confirmColN.includes("有問題") || s.confirmColV.includes("有問題")) {
@@ -303,6 +304,14 @@
       renderVendorTable();
     }
 
+    function getBadgeClass(statusStr) {
+      if (!statusStr) return "bg-slate-100 text-slate-600";
+      if (statusStr.includes("已確認") || statusStr.includes("無誤")) return "bg-emerald-100 text-emerald-800 font-bold border border-emerald-300";
+      if (statusStr.includes("有問題")) return "bg-rose-100 text-rose-800 font-bold border border-rose-300";
+      if (statusStr.includes("已回報")) return "bg-indigo-100 text-indigo-800 font-bold border border-indigo-300";
+      return "bg-slate-100 text-slate-600";
+    }
+
     function renderVendorTable() {
       const search = (document.getElementById('vSearchInput').value || "").trim().toLowerCase();
       const filter = document.getElementById('vFilterStatus').value;
@@ -315,8 +324,8 @@
         const hasReport1 = s.payDate1 || s.payLast5_1 || s.payAmt1;
         const hasReport2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
 
-        if (filter === 'reported1') matchFilter = hasReport1;
-        if (filter === 'reported2') matchFilter = hasReport2;
+        if (filter === 'reported1') matchFilter = hasReport1 || s.confirmColN.includes('已');
+        if (filter === 'reported2') matchFilter = hasReport2 || s.confirmColV.includes('已');
         if (filter === 'issue') matchFilter = s.confirmColN.includes("有問題") || s.confirmColV.includes("有問題");
 
         return matchSearch && matchFilter;
@@ -333,7 +342,7 @@
             <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
             <td class="p-3 font-medium">NT$ ${s.total.toLocaleString()}</td>
             
-            <!-- 🔴 第一期家長匯款回報資訊 (Col G~J) -->
+            <!-- 🔴 第一期家長匯款回報 (Col G~J) -->
             <td class="p-3">
               ${hasReport1 ? `
                 <div class="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs space-y-0.5">
@@ -351,10 +360,13 @@
               `}
             </td>
 
-            <!-- 🟢 第一期已收 (Col M) -->
+            <!-- 第一期已收 (Col M) -->
             <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit1.toLocaleString()}</td>
 
-            <!-- 🔴 第二期家長匯款回報資訊 (Col O~R) -->
+            <!-- 🔴 第一期家長確認 (Col N) -->
+            <td class="p-3"><span class="px-2 py-1 rounded text-[11px] ${getBadgeClass(s.confirmColN)}">${s.confirmColN}</span></td>
+
+            <!-- 🔴 第二期家長匯款回報 (Col O~R) -->
             <td class="p-3">
               ${hasReport2 ? `
                 <div class="p-2 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs space-y-0.5">
@@ -372,8 +384,11 @@
               `}
             </td>
 
-            <!-- 🟢 第二期已收 (Col U) -->
+            <!-- 第二期已收 (Col U) -->
             <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit2.toLocaleString()}</td>
+
+            <!-- 🔴 第二期家長確認 (Col V) -->
+            <td class="p-3"><span class="px-2 py-1 rounded text-[11px] ${getBadgeClass(s.confirmColV)}">${s.confirmColV}</span></td>
 
             <!-- 剩餘尾款 -->
             <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
