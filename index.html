@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.7.1</title>
+  <title>中正弦樂團旅遊對帳系統 v5.7.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.7.1 💳 金額解析修復版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.7.2 穩健連線版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期唯讀 · 第二期獨立專用匯款填寫區 (Col K~N & R)</p>
         </div>
@@ -56,6 +56,13 @@
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1 min-h-[32px]">
           <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在透過 GAS 雲端連線讀取對帳資料...</div>
         </div>
+
+        <!-- 🔴 強制刷新與強制同步按鈕區塊 -->
+        <div class="mt-2 flex justify-center gap-2">
+          <button type="button" onclick="fetchCurrentTripSheet(true)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg border border-indigo-200 transition font-medium">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>強制重新向 GAS 同步資料
+          </button>
+        </div>
         
         <div class="mt-3 bg-indigo-50/60 border border-indigo-100 text-indigo-900 rounded-xl p-3 text-xs text-left flex items-start gap-2 shadow-sm">
           <i class="fa-solid fa-circle-info text-indigo-600 text-base mt-0.5 shrink-0"></i>
@@ -83,9 +90,6 @@
 
         <div id="loginError" class="hidden text-rose-500 text-sm text-center bg-rose-50 p-3 rounded-lg border border-rose-200 space-y-1">
           <p id="loginErrorText"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 姓名或生日不正確，請重新核對。</p>
-          <button type="button" onclick="fetchCurrentTripSheet(true)" class="text-xs text-indigo-600 underline hover:text-indigo-800 font-medium pt-1">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>跳過快取，強制重新向 GAS 同步
-          </button>
         </div>
 
         <button type="button" onclick="execLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg shadow-md transition duration-200 text-base">
@@ -169,7 +173,6 @@
               <span id="stage2ConfirmBadge" class="px-2.5 py-1 rounded-md text-[11px] bg-slate-100 text-slate-600">尚未確認</span>
             </div>
 
-            <!-- 已回報紀錄提示 -->
             <div id="stage2ReportNotice" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
               <i class="fa-solid fa-circle-check mr-1"></i><span id="stage2ReportDetails">--</span>
             </div>
@@ -231,100 +234,13 @@
       </div>
     </div>
 
-    <!-- 3. 幹部後台管理面板 -->
-    <div id="adminSection" class="hidden space-y-6">
-      <div class="bg-slate-900 text-white rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div>
-          <span class="bg-amber-500 text-slate-900 font-bold text-xs px-2.5 py-1 rounded">幹部管理模式</span>
-          <h2 class="text-2xl font-bold mt-2">樂團財務與存取監控後台</h2>
-          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 精確學生對帳總覽</p>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
-            <i class="fa-solid fa-rotate mr-1"></i> 強制刷新全站快取
-          </button>
-          <button onclick="closeAdminPanel()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-4 py-2.5 rounded-lg transition">
-            返回家長查詢區
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
-            <button onclick="clearAccessLogs()" class="text-xs text-rose-500 hover:underline">清空前端 Log</button>
-          </h3>
-          <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y"></div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-          <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>未查看/未對帳學生名單 (<span id="unviewedCount">0</span> 人)</span>
-            <button onclick="copyUnviewedList()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded hover:bg-indigo-100 font-medium">
-              <i class="fa-solid fa-copy mr-1"></i>複製提醒名單
-            </button>
-          </h3>
-          <div id="unviewedStudentList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto text-xs"></div>
-        </div>
-      </div>
-
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
-          <div>
-            <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-users text-indigo-600"></i> 全團學員帳務狀態總覽 (<span id="adminTotalCount">0</span> 名團員)
-            </h3>
-            <p class="text-xs text-slate-400 mt-0.5">已自動過濾家屬列，精確歸納展出正式團員</p>
-          </div>
-          <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
-            class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs text-left text-slate-600">
-            <thead class="bg-slate-100 text-slate-700 font-semibold border-b">
-              <tr>
-                <th class="p-3">學生姓名</th>
-                <th class="p-3">對帳狀態</th>
-                <th class="p-3">生日 (換算)</th>
-                <th class="p-3">房型/房間</th>
-                <th class="p-3">應繳總額</th>
-                <th class="p-3">已繳總額</th>
-                <th class="p-3">第二期確認 (Col R)</th>
-              </tr>
-            </thead>
-            <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
   </main>
-
-  <!-- 幹部登入 Modal -->
-  <div id="adminModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl space-y-4">
-      <div class="text-center">
-        <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2">
-          <i class="fa-solid fa-lock text-xl"></i>
-        </div>
-        <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
-        <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
-      </div>
-      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
-      <div class="flex gap-2">
-        <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
-        <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
-      </div>
-    </div>
-  </div>
 
   <footer class="bg-slate-100 border-t border-slate-200 text-slate-500 text-xs py-4 text-center mt-auto">
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
-      <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.7.1-exact-amount-fix</strong></span>
+      <div>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.7.2-stable</strong></span>
       </div>
     </div>
   </footer>
@@ -337,18 +253,9 @@
       vienna2027: { title: "2027 暑假維也納音樂節" }
     };
 
-    const ADMIN_PASSWORD = "admin123";
-    const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
-
     function cleanRoomName(roomStr) {
       if (!roomStr) return '未設定';
       return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
-    }
-
-    function isFamilyMemberName(name) {
-      if (!name) return true;
-      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
-      return familyKeywords.some(kw => name.includes(kw));
     }
 
     async function sha256(str) {
@@ -390,19 +297,17 @@
     let memoryStudents = [];
     let currentTripKey = "hualien2027";
     let currentUser = null;
-    let isAdminMode = false;
 
     function switchTrip() {
       currentTripKey = document.getElementById('tripSelector').value;
       const tripConfig = TRIPS_CONFIG[currentTripKey];
       document.getElementById('currentTripBadge').innerText = `當前行程：${tripConfig.title}`;
-      
       if (currentUser) logout();
-      fetchCurrentTripSheet(false);
+      fetchCurrentTripSheet(true);
     }
 
     async function processRawRows(rawRows) {
-      if (!rawRows || rawRows.length === 0) return false;
+      if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) return false;
 
       let lastStudentName = "";
       let lastBirthday = "";
@@ -428,10 +333,9 @@
         const nameHash = name ? await sha256(name) : '';
         const bdayHash = normBday ? await sha256(normBday) : '';
 
-        // 🔴【第一期金額 Col I】精準解析：嚴格過濾排除確認、時間戳記與註記欄位
+        // 第一期金額解析
         let deposit1 = 0;
         const allKeys = Object.keys(row);
-
         const exactAmtKey1 = allKeys.find(k => {
           const isStage1 = k.includes('第一期') || k.includes('訂金');
           const isAmt = k.includes('金額') || k.includes('款');
@@ -455,22 +359,15 @@
 
         const confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '家長已確認').toString().trim();
 
-        // 🔴 第二期資料：Col K, L, M, N & R
+        // 第二期資料
         const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
         const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
         const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
         const payAmt2 = (row['第二期家長回報匯款金額'] || '').toString().trim();
         const confirmColR = (row['第二期金額家長確認'] || '尚未確認').toString().trim();
 
-        // 第二期廠商已收款金額 (Col Q)
         let deposit2 = 0;
-        const exactAmtKey2 = allKeys.find(k => {
-          const isStage2 = k.includes('第二期');
-          const isAmt = k.includes('金額') || k.includes('款');
-          const isVendor = k.includes('廠商') || k.includes('收款');
-          const isNotMeta = !k.includes('家長') && !k.includes('確認') && !k.includes('時間');
-          return isStage2 && isAmt && isVendor && isNotMeta;
-        });
+        const exactAmtKey2 = allKeys.find(k => k.includes('第二期') && (k.includes('廠商') || k.includes('收款') || k.includes('金額')) && !k.includes('家長') && !k.includes('確認'));
         if (exactAmtKey2 && row[exactAmtKey2]) {
           deposit2 = Number(row[exactAmtKey2].toString().replace(/[^0-9]/g, '')) || 0;
         }
@@ -494,56 +391,23 @@
       }));
 
       memoryStudents = memoryStudents.filter(s => s.rawName.length > 0 && !s.rawName.includes('<html'));
-
       if (memoryStudents.length === 0) return false;
-
-      const cacheKey = `trip_cache_v5_7_1_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_7_1_${currentTripKey}`;
-      localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
-      localStorage.setItem(cacheTimeKey, Date.now().toString());
 
       const statusEl = document.getElementById('syncStatus');
       statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功從 GAS 雲端同步 ${memoryStudents.length} 筆對帳資料</span>`;
-      
-      if (isAdminMode) renderAdminDashboard();
       return true;
     }
 
+    // 🔴 穩健 API 連線函式
     async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
-
-      const cacheKey = `trip_cache_v5_7_1_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_7_1_${currentTripKey}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      const cachedTime = localStorage.getItem(cacheTimeKey);
-      const now = Date.now();
-
-      if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
-        try {
-          memoryStudents = JSON.parse(cachedData);
-          if (memoryStudents && memoryStudents.length > 0) {
-            const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
-            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
-            if (isAdminMode) renderAdminDashboard();
-            return;
-          }
-        } catch(e) {
-          localStorage.removeItem(cacheKey);
-          localStorage.removeItem(cacheTimeKey);
-        }
-      }
-
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
       try {
-        const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&_t=${now}`;
-        const res = await fetch(fetchUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&action=getData&_t=${Date.now()}`;
+        const res = await fetch(fetchUrl, { redirect: "follow" });
 
-        if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP 狀態碼: ${res.status}`);
         
         const resultJson = await res.json();
         if (resultJson.status === "success" && Array.isArray(resultJson.data)) {
@@ -552,23 +416,16 @@
           throw new Error(resultJson.message || "GAS 回傳 JSON 格式未符合預期");
         }
       } catch (err) {
-        clearTimeout(timeoutId);
         console.error("GAS 連線失敗:", err);
-
-        let errMsg = err.name === "AbortError" ? "連線逾時" : err.message;
-
         statusEl.innerHTML = `
-          <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left space-y-1.5 w-full">
-            <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-rose-600"></i> GAS API 連線失敗：${errMsg}</p>
-            <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs mt-1">
-              <i class="fa-solid fa-rotate mr-1"></i>重試連線
-            </button>
+          <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-center font-medium">
+            <i class="fa-solid fa-circle-exclamation text-rose-600 mr-1"></i> GAS 連線失敗：${err.message}
+            <button onclick="fetchCurrentTripSheet(true)" class="ml-2 underline text-indigo-600 font-bold">重試</button>
           </div>
         `;
       }
     }
 
-    // 專門儲存第二期匯款資訊 (Col K, L, M, N)
     async function submitSecondStagePayment() {
       if (!currentUser || !currentUser.rawName) {
         alert("請先完成團員身分驗證！");
@@ -582,11 +439,6 @@
 
       if (!pDate || !pAmt || !pLast5) {
         alert("請完整填寫：匯款日期、帳號末五碼與匯款金額！");
-        return;
-      }
-
-      if (pLast5.length !== 5) {
-        alert("帳號末五碼格式不正確，請填寫 5 位數字！");
         return;
       }
 
@@ -605,4 +457,152 @@
             payMethod: pMethod,
             payDate: pDate,
             accountLast5: pLast5,
-            payAmount: p
+            payAmount: pAmt
+          })
+        });
+
+        const result = await res.json();
+        if (result.status === "success") {
+          alert(`感謝您！第二期的匯款回報已成功寫入系統。`);
+          await fetchCurrentTripSheet(true);
+          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
+          if (freshUser) currentUser = freshUser;
+          renderUserDashboard();
+        } else {
+          alert(`回報失敗：${result.message}`);
+        }
+      } catch (err) {
+        alert("發送失敗，請確認網路連線後重試！");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1"></i>儲存第二期匯款資訊`;
+      }
+    }
+
+    async function sendDepositConfirmation(stageName, statusValue) {
+      if (!currentUser || !currentUser.rawName) return;
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "confirmDeposit",
+            studentName: currentUser.rawName,
+            stageName: stageName,
+            status: statusValue
+          })
+        });
+
+        const result = await res.json();
+        if (result.status === "success") {
+          alert(`已成功更新【${stageName}】對帳狀態：${statusValue}`);
+          await fetchCurrentTripSheet(true);
+          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
+          if (freshUser) currentUser = freshUser;
+          renderUserDashboard();
+        }
+      } catch (err) {
+        alert("連線發送失敗！");
+      }
+    }
+
+    async function execLogin() {
+      const rawName = (document.getElementById('studentName').value || "").trim();
+      const rawBdayInput = document.getElementById('studentBirthday').value;
+      const normInputBday = normalizeDateString(rawBdayInput);
+
+      if (!rawName || !normInputBday) {
+        alert("請輸入完整的學生姓名與生日！");
+        return;
+      }
+
+      if (!memoryStudents || memoryStudents.length === 0) {
+        document.getElementById('loginErrorText').innerText = "系統尚未連線成功，請先點擊上方「強制重新向 GAS 同步」按鈕。";
+        document.getElementById('loginError').classList.remove('hidden');
+        return;
+      }
+
+      const inputNameHash = await sha256(rawName);
+      const inputBdayHash = await sha256(normInputBday);
+
+      const user = memoryStudents.find(student => {
+        const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
+        const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
+        return isHashMatch || isTextMatch;
+      });
+
+      if (user) {
+        currentUser = user;
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        renderUserDashboard();
+      } else {
+        document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對。";
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function renderUserDashboard() {
+      if (!currentUser) return;
+
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      document.getElementById('userTripTag').innerText = tripConfig.title;
+      document.getElementById('displayName').innerText = currentUser.rawName;
+      document.getElementById('displayRoom').innerText = cleanRoomName(currentUser.room);
+      document.getElementById('displayTotal').innerText = Number(currentUser.total || 0).toLocaleString();
+
+      const dep1 = Number(currentUser.deposit1 || 0);
+      const dep2 = Number(currentUser.deposit2 || 0);
+      const totalPaid = dep1 + dep2;
+
+      document.getElementById('displayDepositTotal').innerText = totalPaid.toLocaleString();
+      document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - totalPaid).toLocaleString();
+
+      document.getElementById('stage1AmtDisplay').innerText = dep1.toLocaleString();
+      document.getElementById('stage1StatusBadge').innerText = currentUser.confirmColJ || '家長已確認';
+
+      document.getElementById('stage2ConfirmBadge').innerText = currentUser.confirmColR || '尚未確認';
+      
+      let badgeClass = "bg-slate-100 text-slate-600";
+      if (currentUser.confirmColR.includes("已確認") || currentUser.confirmColR.includes("無誤")) {
+        badgeClass = "bg-emerald-100 text-emerald-800 font-bold border border-emerald-300";
+      } else if (currentUser.confirmColR.includes("有問題")) {
+        badgeClass = "bg-rose-100 text-rose-800 font-bold border border-rose-300";
+      } else if (currentUser.confirmColR.includes("已回報")) {
+        badgeClass = "bg-indigo-100 text-indigo-800 font-bold border border-indigo-300";
+      }
+      document.getElementById('stage2ConfirmBadge').className = `px-2.5 py-1 rounded-md text-[11px] ${badgeClass}`;
+
+      const hasReport2 = currentUser.payDate2 || currentUser.payLast5_2 || currentUser.payAmt2;
+      const noticeBox = document.getElementById('stage2ReportNotice');
+      
+      if (hasReport2) {
+        document.getElementById('stage2ReportDetails').innerText = `已填寫回報：[${currentUser.payMethod2 || '轉帳/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${currentUser.payAmt2} (末五碼: ${currentUser.payLast5_2})`;
+        noticeBox.classList.remove('hidden');
+
+        if (currentUser.payMethod2) document.getElementById('payMethod_2').value = currentUser.payMethod2;
+        if (currentUser.payDate2) document.getElementById('payDate_2').value = currentUser.payDate2;
+        if (currentUser.payLast5_2) document.getElementById('payLast5_2').value = currentUser.payLast5_2;
+        if (currentUser.payAmt2) document.getElementById('payAmt_2').value = currentUser.payAmt2;
+      } else {
+        noticeBox.classList.add('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    // 初始化自動連線
+    fetchCurrentTripSheet(true);
+  </script>
+</body>
+</html>
