@@ -234,4 +234,520 @@
 
   <footer class="bg-slate-100 border-t border-slate-200 text-slate-500 text-xs py-4 text-center mt-auto">
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
-      <p>©
+      <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
+      <div class="flex items-center gap-3">
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.2.0-gas-timeout-protected</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbykQY82uldX3_O9DWqgY7lnthJRZ2Dwa_kpFfgI3ItXawttb1RrKhwOxbPm5COvALtL/exec";
+
+    const TRIPS_CONFIG = {
+      hualien2027: { title: "2027 寒假花蓮旅行" },
+      vienna2027: { title: "2027 暑假維也納音樂節" }
+    };
+
+    const ADMIN_PASSWORD = "admin123";
+    const CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
+
+    function cleanRoomName(roomStr) {
+      if (!roomStr) return '未設定';
+      return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
+    }
+
+    function isFamilyMemberName(name) {
+      if (!name) return true;
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
+      return familyKeywords.some(kw => name.includes(kw));
+    }
+
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function normalizeDateString(str) {
+      if (!str) return "";
+      let s = str.toString().trim();
+      let year = "", month = "", day = "";
+
+      if (s.includes('/') || s.includes('-') || s.includes('.')) {
+        const parts = s.split(/[/.\-]/);
+        if (parts.length === 3) {
+          year = parts[0];
+          month = parseInt(parts[1], 10).toString();
+          day = parseInt(parts[2], 10).toString();
+        }
+      } else {
+        const digits = s.replace(/[^0-9]/g, '');
+        if (digits.length === 8) {
+          year = digits.substring(0, 4);
+          month = parseInt(digits.substring(4, 6), 10).toString();
+          day = parseInt(digits.substring(6, 8), 10).toString();
+        } else if (digits.length === 7) {
+          year = digits.substring(0, 4);
+          month = parseInt(digits.substring(4, 5), 10).toString();
+          day = parseInt(digits.substring(5), 10).toString();
+        }
+      }
+
+      if (year && month && day) {
+        return `${year}/${month}/${day}`;
+      }
+      return s;
+    }
+
+    let memoryStudents = [];
+    let currentTripKey = "hualien2027";
+    let currentUser = null;
+    let isAdminMode = false;
+
+    function switchTrip() {
+      currentTripKey = document.getElementById('tripSelector').value;
+      const tripConfig = TRIPS_CONFIG[currentTripKey];
+      document.getElementById('currentTripBadge').innerText = `當前行程：${tripConfig.title}`;
+      
+      if (currentUser) logout();
+      fetchCurrentTripSheet(false);
+    }
+
+    async function processRawRows(rawRows) {
+      if (!rawRows || rawRows.length === 0) return false;
+
+      let lastStudentName = "";
+      let lastBirthday = "";
+      let lastRoom = "";
+      let lastTotal = 0;
+
+      memoryStudents = await Promise.all(rawRows.map(async row => {
+        let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+        let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
+        let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
+        let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+
+        room = cleanRoomName(room);
+
+        if (name) lastStudentName = name; else name = lastStudentName;
+        if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
+        if (room) lastRoom = room; else room = lastRoom;
+        
+        let totalCost = Number(totalStr.toString().replace(/[^0-9]/g, ''));
+        if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
+
+        const normBday = normalizeDateString(bdayRaw);
+        const nameHash = name ? await sha256(name) : '';
+        const bdayHash = normBday ? await sha256(normBday) : '';
+
+        const deposits = [];
+        const allKeys = Object.keys(row);
+
+        const amountKeys = allKeys.filter(key => {
+          const isAmount = key.includes('金額') || key.includes('期款');
+          const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註');
+          return isAmount && isNotMeta;
+        });
+
+        amountKeys.forEach(amtKey => {
+          const amtVal = Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, ''));
+          const stageName = amtKey.replace(/匯款金額|金額|款/g, '').trim() || "第一期";
+
+          const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
+          const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+
+          const timeVal = timeKey ? row[timeKey].toString().trim() : '';
+          const methodVal = methodKey ? row[methodKey].toString().trim() : '';
+
+          if (amtVal > 0 || timeVal || methodVal) {
+            deposits.push({
+              stage: stageName,
+              amount: amtVal,
+              status: amtVal > 0 ? "已收到" : "待確認",
+              note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
+            });
+          }
+        });
+
+        if (deposits.length === 0) {
+          deposits.push({
+            stage: "第一期",
+            amount: 0,
+            status: "待繳費",
+            note: "暫無紀錄"
+          });
+        }
+
+        return {
+          rawName: name,
+          rawBdayNorm: normBday,
+          nameHash: nameHash,
+          birthdayHash: bdayHash,
+          room: room || '未設定',
+          total: totalCost,
+          deposits: deposits
+        };
+      }));
+
+      memoryStudents = memoryStudents.filter(s => s.rawName.length > 0 && !s.rawName.includes('<html'));
+
+      if (memoryStudents.length === 0) return false;
+
+      const cacheKey = `trip_cache_v5_2_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_2_${currentTripKey}`;
+      localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
+      localStorage.setItem(cacheTimeKey, Date.now().toString());
+
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功從 GAS 雲端同步 ${memoryStudents.length} 筆對帳資料</span>`;
+      
+      if (isAdminMode) renderAdminDashboard();
+      return true;
+    }
+
+    // 🔴 帶有 5 秒硬性超時防護的 GAS 抓取函式
+    async function fetchCurrentTripSheet(forceRefresh = false) {
+      const statusEl = document.getElementById('syncStatus');
+
+      const cacheKey = `trip_cache_v5_2_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_2_${currentTripKey}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      const cachedTime = localStorage.getItem(cacheTimeKey);
+      const now = Date.now();
+
+      if (!forceRefresh && cachedData && cachedTime && (now - Number(cachedTime) < CACHE_EXPIRE_TIME)) {
+        try {
+          memoryStudents = JSON.parse(cachedData);
+          if (memoryStudents && memoryStudents.length > 0) {
+            const cacheDate = new Date(Number(cachedTime)).toLocaleTimeString();
+            statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i>已載入對帳資料 (${memoryStudents.length} 筆，時間: ${cacheDate})</span>`;
+            if (isAdminMode) renderAdminDashboard();
+            return;
+          }
+        } catch(e) {
+          localStorage.removeItem(cacheKey);
+          localStorage.removeItem(cacheTimeKey);
+        }
+      }
+
+      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
+
+      // 設定 5 秒強制斷線 Controller
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&_t=${now}`;
+        const res = await fetch(fetchUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
+        
+        const resultJson = await res.json();
+        if (resultJson.status === "success" && Array.isArray(resultJson.data)) {
+          await processRawRows(resultJson.data);
+        } else {
+          throw new Error(resultJson.message || "GAS 回傳 JSON 格式未符合預期");
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error("GAS 連線失敗細節:", err);
+
+        let errMsg = err.name === "AbortError" ? "連線逾時 (超過 5 秒無回應)" : err.message;
+
+        statusEl.innerHTML = `
+          <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left space-y-1.5 w-full">
+            <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-rose-600"></i> GAS API 連線失敗：${errMsg}</p>
+            <p class="text-[10px] text-rose-600 leading-relaxed">
+              若在桌面 Chrome 測試，請按 <b>F12 ➔ Console</b> 查看是否有 CORS 錯誤。若是，請確認 GAS 管理部署的「誰有存取權」已設為 <b>「所有人 (Anyone)」</b>。
+            </p>
+            <div class="pt-1 flex gap-2">
+              <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs">
+                <i class="fa-solid fa-rotate mr-1"></i>重試連線
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function recordAccessLog(studentName) {
+      const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
+
+      const logKey = `access_log_${currentTripKey}`;
+      let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      logs.unshift({ name: studentName, time: nowStr });
+      if (logs.length > 100) logs = logs.slice(0, 100);
+      localStorage.setItem(logKey, JSON.stringify(logs));
+
+      try {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            studentName: studentName,
+            tripTitle: TRIPS_CONFIG[currentTripKey].title,
+            userAgent: navigator.userAgent
+          })
+        }).then(r => r.json()).then(data => {
+          console.log("Log 成功寫回 Google 試算表:", data);
+        }).catch(err => {
+          console.warn("寫回 Log 失敗:", err);
+        });
+      } catch(e) {
+        console.warn("發送 Log 請求失敗", e);
+      }
+    }
+
+    async function execLogin() {
+      const rawName = (document.getElementById('studentName').value || "").trim();
+      const rawBdayInput = document.getElementById('studentBirthday').value;
+      const normInputBday = normalizeDateString(rawBdayInput);
+
+      if (!rawName || !normInputBday) {
+        alert("請輸入完整的學生姓名與生日！");
+        return;
+      }
+
+      if (!memoryStudents || memoryStudents.length === 0) {
+        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請點擊上方按鈕重試連線。";
+        document.getElementById('loginError').classList.remove('hidden');
+        return;
+      }
+
+      const inputNameHash = await sha256(rawName);
+      const inputBdayHash = await sha256(normInputBday);
+
+      const user = memoryStudents.find(student => {
+        const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
+        const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
+        return isHashMatch || isTextMatch;
+      });
+
+      if (user) {
+        currentUser = user;
+        const tripConfig = TRIPS_CONFIG[currentTripKey];
+        
+        recordAccessLog(rawName);
+
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+
+        document.getElementById('userTripTag').innerText = tripConfig.title;
+        document.getElementById('displayName').innerText = rawName;
+        document.getElementById('displayRoom').innerText = cleanRoomName(user.room);
+        document.getElementById('displayTotal').innerText = Number(user.total || 0).toLocaleString();
+
+        let paidTotal = 0;
+        const deposits = user.deposits || [];
+        
+        deposits.forEach(d => {
+          if (d.status === "已收到") paidTotal += Number(d.amount || 0);
+        });
+
+        document.getElementById('displayDepositTotal').innerText = paidTotal.toLocaleString();
+        document.getElementById('displayBalance').innerText = Math.max(0, Number(user.total || 0) - paidTotal).toLocaleString();
+
+        const container = document.getElementById('depositListContainer');
+        container.innerHTML = deposits.map(d => `
+          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800">${d.stage}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-slate-400">金額</p>
+              <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
+            </div>
+          </div>
+        `).join('');
+
+      } else {
+        document.getElementById('loginErrorText').innerText = "姓名或生日不正確，請重新核對試算表資料。";
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      document.getElementById('adminPasswordInput').value = "";
+      document.getElementById('adminPasswordInput').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+    }
+
+    function verifyAdminPassword() {
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === ADMIN_PASSWORD) {
+        isAdminMode = true;
+        closeAdminModal();
+        
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+
+        renderAdminDashboard();
+      } else {
+        alert("密碼不正確！");
+      }
+    }
+
+    function closeAdminPanel() {
+      isAdminMode = false;
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderAdminDashboard() {
+      renderAccessLogs();
+      renderUnviewedStudents();
+      renderAdminStudentTable();
+    }
+
+    function renderAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const container = document.getElementById('accessLogList');
+
+      if (logs.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
+        return;
+      }
+
+      container.innerHTML = logs.map(l => `
+        <div class="py-1.5 flex justify-between items-center">
+          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
+          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
+        </div>
+      `).join('');
+    }
+
+    function clearAccessLogs() {
+      if (confirm("確定要清空前端 Log 紀錄嗎？")) {
+        localStorage.removeItem(`access_log_${currentTripKey}`);
+        renderAccessLogs();
+        renderUnviewedStudents();
+      }
+    }
+
+    let currentUnviewedNames = [];
+    function renderUnviewedStudents() {
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const studentOnlyNames = memoryStudents
+        .filter(s => !isFamilyMemberName(s.rawName))
+        .map(s => s.rawName);
+
+      currentUnviewedNames = Array.from(new Set(studentOnlyNames)).filter(name => !viewedNames.has(name));
+
+      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
+      const container = document.getElementById('unviewedStudentList');
+
+      if (currentUnviewedNames.length === 0) {
+        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團學生家長皆已進入系統查看過帳務。</span>`;
+        return;
+      }
+
+      container.innerHTML = currentUnviewedNames.map(name => `
+        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
+          ${name}
+        </span>
+      `).join('');
+    }
+
+    function copyUnviewedList() {
+      if (currentUnviewedNames.length === 0) {
+        alert("目前全團家長皆已完成查看，無需發送提醒！");
+        return;
+      }
+
+      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
+      });
+    }
+
+    function renderAdminStudentTable() {
+      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
+      const tbody = document.getElementById('adminStudentTbody');
+      
+      const logKey = `access_log_${currentTripKey}`;
+      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
+      const viewedNames = new Set(logs.map(l => l.name));
+
+      const cleanStudents = memoryStudents.filter(s => !isFamilyMemberName(s.rawName));
+      const groupedMap = new Map();
+
+      cleanStudents.forEach(s => {
+        if (!groupedMap.has(s.rawName)) {
+          groupedMap.set(s.rawName, {
+            rawName: s.rawName,
+            rawBdayNorm: s.rawBdayNorm,
+            room: cleanRoomName(s.room),
+            total: s.total,
+            paid: 0
+          });
+        }
+
+        const target = groupedMap.get(s.rawName);
+        if (!target.rawBdayNorm && s.rawBdayNorm) target.rawBdayNorm = s.rawBdayNorm;
+        if ((!target.room || target.room === '未設定') && s.room) target.room = cleanRoomName(s.room);
+        if (target.total === 0 && s.total > 0) target.total = s.total;
+
+        (s.deposits || []).forEach(d => {
+          if (d.status === "已收到") target.paid += d.amount;
+        });
+      });
+
+      let groupedList = Array.from(groupedMap.values());
+
+      if (search) {
+        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
+      }
+
+      document.getElementById('adminTotalCount').innerText = groupedList.length;
+
+      tbody.innerHTML = groupedList.map(s => {
+        const balance = Math.max(0, s.total - s.paid);
+        const hasViewed = viewedNames.has(s.rawName);
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
+            <td class="p-3">
+              ${hasViewed 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
+                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+            </td>
+            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${cleanRoomName(s.room)}</span></td>
+            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
+            <td class="p-3 ${balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">NT$ ${balance.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 初始化載入
+    fetchCurrentTripSheet(false);
+  </script>
+</body>
+</html>
