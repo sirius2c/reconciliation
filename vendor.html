@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團 - 合作旅行社廠商對帳後台</title>
+  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.3.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1 class="text-base md:text-lg font-bold leading-tight">中正弦樂團 - 合作旅行社帳務系統</h1>
-          <p class="text-xs text-slate-400">專屬廠商對帳管理面板</p>
+          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (正確計算版)</p>
         </div>
       </div>
 
@@ -72,10 +72,6 @@
           驗證登入
         </button>
       </form>
-      
-      <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-        預設花蓮行程帳號: <code class="text-slate-600 font-mono">yoyang</code> / 密碼: <code class="text-slate-600 font-mono">hualien2027password</code>
-      </div>
     </div>
 
     <!-- 2. 廠商對帳面板 Dashboard -->
@@ -226,13 +222,27 @@
         const total = Number((row['總費用'] || row['費用'] || '0').toString().replace(/[^0-9]/g, ''));
         const confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
 
-        // 整理第一期金額
+        // 🔴 精準解析第一期金額 (Col H)
         let deposit1 = 0;
-        Object.keys(row).forEach(k => {
-          if ((k.includes('一期') || k.includes('訂金')) && k.includes('金額')) {
-            deposit1 = Number((row[k] || '0').toString().replace(/[^0-9]/g, ''));
-          }
+        const allKeys = Object.keys(row);
+        
+        // 尋找明確的第一期金額欄位（避開 Col J 確認欄位與時間字串）
+        const amtKey = allKeys.find(k => {
+          const isAmtHeader = k.includes('第一期') || k.includes('訂金') || k.includes('一期');
+          const isAmtCol = k.includes('金額') || k.includes('款');
+          const isNotConfirm = !k.includes('確認') && !k.includes('時間') && !k.includes('方式') && !k.includes('備註');
+          return isAmtHeader && isAmtCol && isNotConfirm;
         });
+
+        if (amtKey && row[amtKey]) {
+          deposit1 = Number(row[amtKey].toString().replace(/[^0-9]/g, '')) || 0;
+        } else {
+          // 備援：若欄位名稱抓不到，直接拿第一期已存的數字
+          const fallbackKey = allKeys.find(k => (k.includes('一期') || k.includes('訂金')) && !k.includes('確認') && !k.includes('時間'));
+          if (fallbackKey) {
+            deposit1 = Number((row[fallbackKey] || '0').toString().replace(/[^0-9]/g, '')) || 0;
+          }
+        }
 
         if (!studentMap.has(name)) {
           studentMap.set(name, {
@@ -299,7 +309,7 @@
             <td class="p-3 font-bold text-slate-800">${s.name}</td>
             <td class="p-3"><span class="px-2.5 py-1 rounded-md text-[11px] ${badgeClass}">${s.confirmColJ}</span></td>
             <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
-            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 font-medium">NT$ ${s.total.toLocaleString()}</td>
             <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit1.toLocaleString()}</td>
             <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
           </tr>
