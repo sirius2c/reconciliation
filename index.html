@@ -410,7 +410,7 @@
       return true;
     }
 
-    async function fetchCurrentTripSheet(forceRefresh = false) {
+async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
 
       const cacheKey = `trip_cache_v5_3_${currentTripKey}`;
@@ -437,11 +437,16 @@
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 放寬為 8 秒連線等待
 
       try {
         const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&_t=${now}`;
-        const res = await fetch(fetchUrl, { signal: controller.signal });
+        // 🟢 加上 redirect: 'follow' 與免登入標頭，解決部分手機跨網域懸空問題
+        const res = await fetch(fetchUrl, { 
+          signal: controller.signal,
+          method: 'GET',
+          redirect: 'follow'
+        });
         clearTimeout(timeoutId);
 
         if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
@@ -456,11 +461,14 @@
         clearTimeout(timeoutId);
         console.error("GAS 連線失敗:", err);
 
-        let errMsg = err.name === "AbortError" ? "連線逾時 (超過 5 秒無回應)" : err.message;
+        let errMsg = err.name === "AbortError" ? "連線逾時" : (err.message || "Failed to fetch");
 
         statusEl.innerHTML = `
           <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left space-y-1.5 w-full">
             <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-rose-600"></i> GAS API 連線失敗：${errMsg}</p>
+            <p class="text-[10px] text-rose-600 leading-relaxed">
+              請確認 GAS 管理部署的存取權限已設定為 <b>「所有人 (Anyone)」</b>，並已點選「建立新版本」重新部署。
+            </p>
             <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs mt-1">
               <i class="fa-solid fa-rotate mr-1"></i>重試連線
             </button>
