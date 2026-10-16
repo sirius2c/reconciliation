@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.3.0</title>
+  <title>中正弦樂團旅遊對帳系統 v5.6.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.3.0 ✍️ 家長確認雙向寫回版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.6.0</span>
           </div>
-          <p class="hidden sm:block text-indigo-200 text-xs">家長對帳 · GAS API 雙向互動 · 自動寫回 J 欄確認狀態</p>
+          <p class="hidden sm:block text-indigo-200 text-xs"></p>
         </div>
       </div>
 
@@ -53,7 +53,6 @@
           當前行程：2027 寒假花蓮旅行
         </span>
 
-        <!-- 自動連線狀態顯示 -->
         <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1 min-h-[32px]">
           <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在透過 GAS 雲端連線讀取對帳資料...</div>
         </div>
@@ -120,14 +119,14 @@
         </div>
       </div>
 
-      <!-- 繳費明細與家長寫回確認卡片 -->
+      <!-- 多期繳費明細紀錄 (包含第二期獨立 Col K, L, M, N 表單) -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <h3 class="text-lg font-bold text-slate-800 border-b pb-3 flex items-center justify-between">
-          <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細紀錄</span>
-          <span class="text-xs text-slate-400 font-normal">分期繳費狀態</span>
+          <span><i class="fa-solid fa-list-check text-indigo-600 mr-2"></i>多期訂金 / 收款明細與匯款回報</span>
+          <span class="text-xs text-slate-400 font-normal">分期對帳狀態</span>
         </h3>
         
-        <div id="depositListContainer" class="space-y-3"></div>
+        <div id="depositListContainer" class="space-y-4"></div>
       </div>
 
       <!-- 銀行資訊區塊 -->
@@ -204,7 +203,7 @@
                 <th class="p-3">房型/房間</th>
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">已繳總額</th>
-                <th class="p-3">第一期家長確認</th>
+                <th class="p-3">對帳狀態 (Col R)</th>
               </tr>
             </thead>
             <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
@@ -237,7 +236,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div class="flex items-center gap-3">
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.3.0-colJ-writeback</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.6.0-colK-N-exact</strong></span>
       </div>
     </div>
   </footer>
@@ -327,9 +326,6 @@
         let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
         let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
         let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
-        
-        // 🟢 抓取 J 欄：第一期金額家長確認欄位
-        let confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '').toString().trim();
 
         room = cleanRoomName(room);
 
@@ -347,28 +343,33 @@
         const deposits = [];
         const allKeys = Object.keys(row);
 
-        const amountKeys = allKeys.filter(key => {
-          const isAmount = key.includes('金額') || key.includes('期款');
-          const isNotMeta = !key.includes('時間') && !key.includes('方式') && !key.includes('備註') && !key.includes('確認');
-          return isAmount && isNotMeta;
-        });
+        const stageNames = ["第一期", "第二期", "第三期"];
+        stageNames.forEach(stageName => {
+          const amtKey = allKeys.find(k => k.includes(stageName) && (k.includes('金額') || k.includes('款')) && !k.includes('確認') && !k.includes('日期') && !k.includes('帳號') && !k.includes('方式'));
+          const amtVal = amtKey ? Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, '')) : 0;
 
-        amountKeys.forEach(amtKey => {
-          const amtVal = Number((row[amtKey] || '0').toString().replace(/[^0-9]/g, ''));
-          const stageName = amtKey.replace(/匯款金額|金額|款/g, '').trim() || "第一期";
+          const methodRepKey = allKeys.find(k => k.includes(stageName) && k.includes('匯款方式'));
+          const dateRepKey = allKeys.find(k => k.includes(stageName) && k.includes('匯款日期'));
+          const last5RepKey = allKeys.find(k => k.includes(stageName) && k.includes('帳號後五碼'));
+          const amtRepKey = allKeys.find(k => k.includes(stageName) && k.includes('匯款金額'));
+          const confirmKey = allKeys.find(k => k.includes(stageName) && k.includes('確認'));
 
-          const timeKey = allKeys.find(k => k.includes(stageName) && k.includes('時間')) || '';
-          const methodKey = allKeys.find(k => k.includes(stageName) && k.includes('方式')) || '';
+          const payMethodRep = methodRepKey ? row[methodRepKey].toString().trim() : '網路銀行/ATM';
+          const payDateRep = dateRepKey ? row[dateRepKey].toString().trim() : '';
+          const payLast5Rep = last5RepKey ? row[last5RepKey].toString().trim() : '';
+          const payAmtRep = amtRepKey ? row[amtRepKey].toString().trim() : '';
+          const stageStatus = confirmKey ? row[confirmKey].toString().trim() : '';
 
-          const timeVal = timeKey ? row[timeKey].toString().trim() : '';
-          const methodVal = methodKey ? row[methodKey].toString().trim() : '';
-
-          if (amtVal > 0 || timeVal || methodVal) {
+          if (amtVal > 0 || payDateRep || payAmtRep || stageStatus) {
             deposits.push({
               stage: stageName,
               amount: amtVal,
-              status: amtVal > 0 ? "已收到" : "待確認",
-              note: [timeVal, methodVal].filter(Boolean).join(' / ') || "依試算表紀錄"
+              status: amtVal > 0 ? "已收到" : (stageStatus || "待繳費"),
+              payMethodRep: payMethodRep,
+              payDateRep: payDateRep,
+              payLast5Rep: payLast5Rep,
+              payAmtRep: payAmtRep,
+              confirmStatus: stageStatus || "尚未確認"
             });
           }
         });
@@ -378,7 +379,7 @@
             stage: "第一期",
             amount: 0,
             status: "待繳費",
-            note: "暫無紀錄"
+            confirmStatus: "尚未確認"
           });
         }
 
@@ -389,7 +390,6 @@
           birthdayHash: bdayHash,
           room: room || '未設定',
           total: totalCost,
-          confirmColJ: confirmColJ,
           deposits: deposits
         };
       }));
@@ -398,8 +398,8 @@
 
       if (memoryStudents.length === 0) return false;
 
-      const cacheKey = `trip_cache_v5_3_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_3_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_6_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_6_${currentTripKey}`;
       localStorage.setItem(cacheKey, JSON.stringify(memoryStudents));
       localStorage.setItem(cacheTimeKey, Date.now().toString());
 
@@ -410,11 +410,11 @@
       return true;
     }
 
-async function fetchCurrentTripSheet(forceRefresh = false) {
+    async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
 
-      const cacheKey = `trip_cache_v5_3_${currentTripKey}`;
-      const cacheTimeKey = `trip_cache_time_v5_3_${currentTripKey}`;
+      const cacheKey = `trip_cache_v5_6_${currentTripKey}`;
+      const cacheTimeKey = `trip_cache_time_v5_6_${currentTripKey}`;
       const cachedData = localStorage.getItem(cacheKey);
       const cachedTime = localStorage.getItem(cacheTimeKey);
       const now = Date.now();
@@ -437,16 +437,11 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
       statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 放寬為 8 秒連線等待
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       try {
         const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&_t=${now}`;
-        // 🟢 加上 redirect: 'follow' 與免登入標頭，解決部分手機跨網域懸空問題
-        const res = await fetch(fetchUrl, { 
-          signal: controller.signal,
-          method: 'GET',
-          redirect: 'follow'
-        });
+        const res = await fetch(fetchUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
@@ -461,14 +456,11 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
         clearTimeout(timeoutId);
         console.error("GAS 連線失敗:", err);
 
-        let errMsg = err.name === "AbortError" ? "連線逾時" : (err.message || "Failed to fetch");
+        let errMsg = err.name === "AbortError" ? "連線逾時" : err.message;
 
         statusEl.innerHTML = `
           <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left space-y-1.5 w-full">
             <p class="font-bold flex items-center gap-1"><i class="fa-solid fa-circle-exclamation text-rose-600"></i> GAS API 連線失敗：${errMsg}</p>
-            <p class="text-[10px] text-rose-600 leading-relaxed">
-              請確認 GAS 管理部署的存取權限已設定為 <b>「所有人 (Anyone)」</b>，並已點選「建立新版本」重新部署。
-            </p>
             <button onclick="fetchCurrentTripSheet(true)" class="bg-rose-600 text-white font-medium px-3 py-1 rounded hover:bg-rose-700 transition text-xs mt-1">
               <i class="fa-solid fa-rotate mr-1"></i>重試連線
             </button>
@@ -477,20 +469,67 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
       }
     }
 
-    // 🔴 寫回 Col J「第一期金額家長確認」的觸發函式
-    async function sendDepositConfirmation(statusValue) {
+    // 🔴 送出第二期/多期匯款資訊回報 (寫入 Col K, L, M, N)
+    async function submitStagePayment(stageName, idx) {
       if (!currentUser || !currentUser.rawName) {
         alert("請先完成團員身分驗證！");
         return;
       }
 
-      const btn1 = document.getElementById('btnConfirmOk');
-      const btn2 = document.getElementById('btnConfirmErr');
-      if (btn1) btn1.disabled = true;
-      if (btn2) btn2.disabled = true;
+      const pMethod = document.getElementById(`payMethod_${idx}`).value;
+      const pDate = document.getElementById(`payDate_${idx}`).value;
+      const pLast5 = document.getElementById(`payLast5_${idx}`).value;
+      const pAmt = document.getElementById(`payAmt_${idx}`).value;
 
-      const statusEl = document.getElementById('confirmStatusNotice');
-      if (statusEl) statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>正在將確認結果寫回 Google 試算表...`;
+      if (!pDate || !pAmt || !pLast5) {
+        alert("請完整填寫：匯款日期、帳號末五碼與匯款金額！");
+        return;
+      }
+
+      if (pLast5.length !== 5) {
+        alert("帳號末五碼格式不正確，請填寫 5 位數字！");
+        return;
+      }
+
+      const btn = document.getElementById(`btnSubmit_${idx}`);
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i>傳送中...`;
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "reportPayment",
+            studentName: currentUser.rawName,
+            stageName: stageName,
+            payMethod: pMethod,
+            payDate: pDate,
+            accountLast5: pLast5,
+            payAmount: pAmt
+          })
+        });
+
+        const result = await res.json();
+        if (result.status === "success") {
+          alert(`感謝您！${stageName} 的匯款回報已成功寫入系統。`);
+          await fetchCurrentTripSheet(true);
+          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
+          if (freshUser) currentUser = freshUser;
+          renderUserDashboard();
+        } else {
+          alert(`回報失敗：${result.message}`);
+        }
+      } catch (err) {
+        alert("發送失敗，請確認網路連線後重試！");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> 儲存 ${stageName} 匯款資訊`;
+      }
+    }
+
+    async function sendDepositConfirmation(stageName, statusValue) {
+      if (!currentUser || !currentUser.rawName) return;
 
       try {
         const res = await fetch(GAS_API_URL, {
@@ -499,34 +538,26 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
           body: JSON.stringify({
             action: "confirmDeposit",
             studentName: currentUser.rawName,
+            stageName: stageName,
             status: statusValue
           })
         });
 
         const result = await res.json();
         if (result.status === "success") {
-          alert(`已成功更新對帳狀態：${statusValue}`);
-          // 重新整理資料，同步顯示最新 J 欄狀態
+          alert(`已成功更新【${stageName}】對帳狀態：${statusValue}`);
           await fetchCurrentTripSheet(true);
-          // 重新載入當前使用者面板
           const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
           if (freshUser) currentUser = freshUser;
           renderUserDashboard();
-        } else {
-          alert(`寫回失敗：${result.message}`);
         }
       } catch (err) {
-        alert("連線發送失敗，請確認網路狀態後重試！");
-        console.error("寫回失敗:", err);
-      } finally {
-        if (btn1) btn1.disabled = false;
-        if (btn2) btn2.disabled = false;
+        alert("連線發送失敗！");
       }
     }
 
     function recordAccessLog(studentName) {
       const nowStr = new Date().toLocaleString("zh-TW", { hour12: false });
-
       const logKey = `access_log_${currentTripKey}`;
       let logs = JSON.parse(localStorage.getItem(logKey) || "[]");
       logs.unshift({ name: studentName, time: nowStr });
@@ -542,7 +573,7 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
             tripTitle: TRIPS_CONFIG[currentTripKey].title,
             userAgent: navigator.userAgent
           })
-        }).then(r => r.json()).catch(err => console.warn("寫回 Log 失敗:", err));
+        }).catch(err => {});
       } catch(e) {}
     }
 
@@ -557,7 +588,7 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
       }
 
       if (!memoryStudents || memoryStudents.length === 0) {
-        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請點擊上方按鈕重試連線。";
+        document.getElementById('loginErrorText').innerText = "系統尚未讀取到試算表資料，請重試連線。";
         document.getElementById('loginError').classList.remove('hidden');
         return;
       }
@@ -587,7 +618,6 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
       }
     }
 
-    // 渲染家長查詢結果面板
     function renderUserDashboard() {
       if (!currentUser) return;
 
@@ -608,11 +638,8 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
       document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - paidTotal).toLocaleString();
 
       const container = document.getElementById('depositListContainer');
-      
-      // 渲染第一期款項卡片（帶家長確認按鈕與 J 欄狀態）
-      container.innerHTML = deposits.map((d, index) => {
-        const isFirstStage = index === 0 || d.stage.includes("第一期") || d.stage.includes("訂金");
-        const currentJStatus = currentUser.confirmColJ || "尚未確認";
+      container.innerHTML = deposits.map((d, idx) => {
+        const currentJStatus = d.confirmStatus || "尚未確認";
 
         let confirmBadgeClass = "bg-slate-100 text-slate-600";
         if (currentJStatus.includes("已確認") || currentJStatus.includes("無誤")) {
@@ -621,39 +648,77 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
           confirmBadgeClass = "bg-rose-100 text-rose-800 font-bold border border-rose-300";
         }
 
+        const hasReported = d.payDateRep || d.payAmtRep || d.payLast5Rep;
+
         return `
-          <div class="p-4 rounded-xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/40 border-amber-200'} space-y-3">
+          <div class="p-5 rounded-2xl border ${d.status === '已收到' ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/30 border-amber-200'} space-y-4">
             <div class="flex flex-wrap justify-between items-center gap-3">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-slate-800">${d.stage}</span>
-                  <span class="text-xs px-2 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
+                  <span class="font-bold text-slate-800 text-base">${d.stage}</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full font-medium ${d.status === '已收到' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${d.status}</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-clock mr-1"></i>紀錄與方式：${d.note}</p>
               </div>
               <div class="text-right">
-                <p class="text-xs text-slate-400">金額</p>
-                <p class="text-lg font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
+                <p class="text-xs text-slate-400">款項金額</p>
+                <p class="text-xl font-bold ${d.status === '已收到' ? 'text-slate-800' : 'text-amber-600'}">NT$ ${Number(d.amount || 0).toLocaleString()}</p>
               </div>
             </div>
 
-            ${isFirstStage ? `
-              <div class="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-slate-700"><i class="fa-solid fa-pen-to-square text-indigo-600 mr-1"></i>家長金額核對狀態：</span>
-                  <span class="px-2.5 py-1 rounded-md text-[11px] ${confirmBadgeClass}">${currentJStatus}</span>
+            <!-- 每一期獨立家長匯款回報區塊 (Col K, L, M, N) -->
+            <div class="bg-white p-4 rounded-xl border border-indigo-100 space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                  <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> ${d.stage} 匯款資訊填寫回報：
+                </span>
+                <span class="px-2 py-0.5 rounded text-[11px] ${confirmBadgeClass}">${currentJStatus}</span>
+              </div>
+
+              ${hasReported ? `
+                <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+                  <i class="fa-solid fa-circle-check mr-1"></i>已填寫回報：[${d.payMethodRep}] ${d.payDateRep} 匯款 NT$ ${d.payAmtRep} (末五碼: ${d.payLast5Rep})
                 </div>
-                <div class="flex gap-2 shrink-0">
-                  <button id="btnConfirmOk" onclick="sendDepositConfirmation('家長已確認')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
-                    <i class="fa-solid fa-circle-check"></i> 金額無誤
-                  </button>
-                  <button id="btnConfirmErr" onclick="sendDepositConfirmation('匯款有問題')" class="bg-rose-600 hover:bg-rose-700 text-white font-medium px-3 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
-                    <i class="fa-solid fa-triangle-exclamation"></i> 匯款有問題
-                  </button>
+              ` : ''}
+
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                <div>
+                  <label class="block text-[11px] text-slate-500 mb-1">匯款方式 (Col K)</label>
+                  <select id="payMethod_${idx}" class="w-full px-2.5 py-1.5 rounded border text-xs outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+                    <option value="網路銀行/ATM" selected>網路銀行/ATM</option>
+                    <option value="實體ATM轉帳">實體ATM轉帳</option>
+                    <option value="郵局/銀行臨櫃">郵局/銀行臨櫃</option>
+                    <option value="其它方式">其它方式</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-500 mb-1">匯款日期 (Col L)</label>
+                  <input type="date" id="payDate_${idx}" value="${d.payDateRep}" class="w-full px-2.5 py-1.5 rounded border text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-500 mb-1">帳號末五碼 (Col M)</label>
+                  <input type="text" id="payLast5_${idx}" value="${d.payLast5Rep}" maxlength="5" placeholder="5位數字" class="w-full px-2.5 py-1.5 rounded border text-xs outline-none focus:ring-1 focus:ring-indigo-500 font-mono">
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-500 mb-1">匯款金額 (Col N)</label>
+                  <input type="number" id="payAmt_${idx}" value="${d.payAmtRep}" placeholder="金額" class="w-full px-2.5 py-1.5 rounded border text-xs outline-none focus:ring-1 focus:ring-indigo-500">
                 </div>
               </div>
-              <div id="confirmStatusNotice" class="text-[11px] text-slate-400"></div>
-            ` : ''}
+
+              <div class="flex justify-between items-center pt-1">
+                <div class="flex gap-1.5">
+                  <button onclick="sendDepositConfirmation('${d.stage}', '家長已確認')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded border border-emerald-200 font-medium">
+                    <i class="fa-solid fa-check mr-1"></i>確認金額無誤
+                  </button>
+                  <button onclick="sendDepositConfirmation('${d.stage}', '匯款有問題')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-2.5 py-1 rounded border border-rose-200 font-medium">
+                    <i class="fa-solid fa-exclamation mr-1"></i>回報問題
+                  </button>
+                </div>
+
+                <button id="btnSubmit_${idx}" onclick="submitStagePayment('${d.stage}', ${idx})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-3 py-1.5 rounded-lg transition shadow-sm">
+                  <i class="fa-solid fa-paper-plane mr-1"></i>儲存 ${d.stage} 匯款資訊
+                </button>
+              </div>
+            </div>
           </div>
         `;
       }).join('');
@@ -788,7 +853,7 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
             rawBdayNorm: s.rawBdayNorm,
             room: cleanRoomName(s.room),
             total: s.total,
-            confirmColJ: s.confirmColJ || '未確認',
+            confirmColR: s.confirmColR || '未確認',
             paid: 0
           });
         }
@@ -815,11 +880,11 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
         const balance = Math.max(0, s.total - s.paid);
         const hasViewed = viewedNames.has(s.rawName);
 
-        let jBadge = "bg-slate-100 text-slate-600";
-        if (s.confirmColJ.includes("已確認") || s.confirmColJ.includes("無誤")) {
-          jBadge = "bg-emerald-100 text-emerald-700 font-bold";
-        } else if (s.confirmColJ.includes("有問題")) {
-          jBadge = "bg-rose-100 text-rose-700 font-bold";
+        let rBadge = "bg-slate-100 text-slate-600";
+        if (s.confirmColR.includes("已確認") || s.confirmColR.includes("無誤")) {
+          rBadge = "bg-emerald-100 text-emerald-700 font-bold";
+        } else if (s.confirmColR.includes("有問題")) {
+          rBadge = "bg-rose-100 text-rose-700 font-bold";
         }
 
         return `
@@ -834,7 +899,7 @@ async function fetchCurrentTripSheet(forceRefresh = false) {
             <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${cleanRoomName(s.room)}</span></td>
             <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
             <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${jBadge}">${s.confirmColJ}</span></td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${rBadge}">${s.confirmColR}</span></td>
           </tr>
         `;
       }).join('');
