@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.8.6</title>
+  <title>中正弦樂團旅遊對帳系統 v5.8.7</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.6</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.7</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -233,7 +233,7 @@
         <h3 class="font-bold text-slate-800">幹部身分驗證</h3>
         <p class="text-xs text-slate-500 mt-1">請輸入幹部管理密碼</p>
       </div>
-      <input type="password" id="adminPasswordInput" placeholder="密碼請洽管理員" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="password" id="adminPasswordInput" placeholder="預設密碼 admin123" class="w-full px-3 py-2 border rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500">
       <div class="flex gap-2">
         <button onclick="closeAdminModal()" class="w-1/2 bg-slate-200 text-slate-600 text-xs py-2 rounded-lg">取消</button>
         <button onclick="verifyAdminPassword()" class="w-1/2 bg-indigo-600 text-white text-xs py-2 rounded-lg font-medium">驗證登入</button>
@@ -245,7 +245,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.6-three-stage-logic</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.7-fixed</strong></span>
       </div>
     </div>
   </footer>
@@ -767,7 +767,10 @@
         }
       } catch (err) {
         alert("發送失敗，請確認網路連線後重試！");
-      } font-medium
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1"></i>儲存${stageName}匯款資訊`;
+      }
     }
 
     async function sendDepositConfirmation(stageName, statusValue) {
