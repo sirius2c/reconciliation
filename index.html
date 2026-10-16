@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.8.7</title>
+  <title>中正弦樂團旅遊對帳系統 v5.8.8</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.7</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.8 相容修復版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -129,10 +129,10 @@
           <span class="text-xs text-slate-400 font-normal">分期對帳狀態</span>
         </h3>
         
-        <!-- 第一期卡片 (動態渲染) -->
+        <!-- 第一期卡片 -->
         <div id="stage1Card"></div>
 
-        <!-- 第二期卡片 (動態渲染) -->
+        <!-- 第二期卡片 -->
         <div id="stage2Card"></div>
 
       </div>
@@ -245,7 +245,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.7-fixed</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.8-crypto-fix</strong></span>
       </div>
     </div>
   </footer>
@@ -271,39 +271,54 @@
       return familyKeywords.some(kw => name.includes(kw));
     }
 
+    // 🔴 升級防爆版本 sha256 函式：非 HTTPS / 本地檔案環境不崩潰
     async function sha256(str) {
-      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (!str) return "";
+      try {
+        if (window.crypto && window.crypto.subtle && window.isSecureContext) {
+          const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+      } catch (e) {
+        console.warn("Crypto API 不支援，自動切換至相容文字雜湊", e);
+      }
+      return str.toString().trim().toLowerCase().replace(/\s+/g, '');
     }
 
     function normalizeDateString(str) {
       if (!str) return "";
       let s = str.toString().trim();
-      let year = "", month = "", day = "";
+      if (s.includes('T')) s = s.split('T')[0];
+
+      const digits = s.replace(/[^0-9]/g, '');
+      if (digits.length >= 7) {
+        let year, month, day;
+        if (digits.length === 8) {
+          year = digits.substring(0, 4);
+          month = parseInt(digits.substring(4, 6), 10);
+          day = parseInt(digits.substring(6, 8), 10);
+        } else if (digits.length === 7) {
+          year = digits.substring(0, 4);
+          month = parseInt(digits.substring(4, 5), 10);
+          day = parseInt(digits.substring(5, 7), 10);
+        }
+        if (year && month && day) {
+          return `${year}/${month}/${day}`;
+        }
+      }
 
       if (s.includes('/') || s.includes('-') || s.includes('.')) {
         const parts = s.split(/[/.\-]/);
-        if (parts.length === 3) {
-          year = parts[0];
-          month = parseInt(parts[1], 10).toString();
-          day = parseInt(parts[2], 10).toString();
-        }
-      } else {
-        const digits = s.replace(/[^0-9]/g, '');
-        if (digits.length === 8) {
-          year = digits.substring(0, 4);
-          month = parseInt(digits.substring(4, 6), 10).toString();
-          day = parseInt(digits.substring(6, 8), 10).toString();
-        } else if (digits.length === 7) {
-          year = digits.substring(0, 4);
-          month = parseInt(digits.substring(4, 5), 10).toString();
-          day = parseInt(digits.substring(5), 10).toString();
+        if (parts.length >= 3) {
+          const y = parts[0].trim();
+          const m = parseInt(parts[1], 10);
+          const d = parseInt(parts[2], 10);
+          if (!isNaN(m) && !isNaN(d)) {
+            return `${y}/${m}/${d}`;
+          }
         }
       }
 
-      if (year && month && day) {
-        return `${year}/${month}/${day}`;
-      }
       return s;
     }
 
@@ -329,76 +344,81 @@
       let lastTotal = 0;
 
       memoryStudents = await Promise.all(rawRows.map(async row => {
-        let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
-        let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
-        let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
-        let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
+        try {
+          let name = (row['學生姓名'] || row['姓名'] || row['姓名一'] || row['團員姓名'] || '').toString().trim();
+          let bdayRaw = (row['生日'] || row['學生生日'] || row['請填寫學生生日:'] || '').toString().trim();
+          let room = (row['分房(新)'] || row['分房'] || row['房型'] || '').toString().trim();
+          let totalStr = (row['總費用'] || row['費用(個人)'] || row['費用'] || '').toString().trim();
 
-        room = cleanRoomName(room);
+          room = cleanRoomName(room);
 
-        if (name) lastStudentName = name; else name = lastStudentName;
-        if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
-        if (room) lastRoom = room; else room = lastRoom;
-        
-        let totalCost = Number(totalStr.toString().replace(/[^0-9]/g, ''));
-        if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
+          if (name) lastStudentName = name; else name = lastStudentName;
+          if (bdayRaw) lastBirthday = bdayRaw; else bdayRaw = lastBirthday;
+          if (room) lastRoom = room; else room = lastRoom;
+          
+          let totalCost = Number(totalStr.toString().replace(/[^0-9]/g, ''));
+          if (totalCost > 0) lastTotal = totalCost; else totalCost = lastTotal;
 
-        const normBday = normalizeDateString(bdayRaw);
-        const nameHash = name ? await sha256(name) : '';
-        const bdayHash = normBday ? await sha256(normBday) : '';
+          const normBday = normalizeDateString(bdayRaw);
+          const nameHash = name ? await sha256(name) : '';
+          const bdayHash = normBday ? await sha256(normBday) : '';
 
-        // 第一期家長回報與確認 (Col G~J, N)
-        const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
-        const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
-        const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
-        const payAmt1 = (row['第一期家長回報匯款金額'] || '').toString().trim();
-        const confirmColN = (row['第一期金額家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
+          // 第一期家長回報與確認 (Col G~J, N)
+          const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
+          const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
+          const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
+          const payAmt1 = (row['第一期家長回報匯款金額'] || '').toString().trim();
+          const confirmColN = (row['第一期金額家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
 
-        // 第一期廠商已收金額 (Col M)
-        let deposit1 = 0;
-        const allKeys = Object.keys(row);
-        const exactAmtKey1 = allKeys.find(k => k.includes('第一期') && (k.includes('廠商') || k.includes('金額') || k.includes('款')) && !k.includes('家長') && !k.includes('確認') && !k.includes('方式') && !k.includes('時間'));
-        if (exactAmtKey1 && row[exactAmtKey1]) {
-          deposit1 = Number(row[exactAmtKey1].toString().replace(/[^0-9]/g, '')) || 0;
+          // 第一期廠商已收金額 (Col M)
+          let deposit1 = 0;
+          const allKeys = Object.keys(row);
+          const exactAmtKey1 = allKeys.find(k => k.includes('第一期') && (k.includes('廠商') || k.includes('金額') || k.includes('款')) && !k.includes('家長') && !k.includes('確認') && !k.includes('方式') && !k.includes('時間'));
+          if (exactAmtKey1 && row[exactAmtKey1]) {
+            deposit1 = Number(row[exactAmtKey1].toString().replace(/[^0-9]/g, '')) || 0;
+          }
+
+          // 第二期家長回報與確認 (Col O~R, V)
+          const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
+          const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
+          const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
+          const payAmt2 = (row['第二期家長回報匯款金額'] || '').toString().trim();
+          const confirmColV = (row['第二期金額家長確認'] || row['第二期確認'] || '尚未確認').toString().trim();
+
+          // 第二期廠商已收金額 (Col U)
+          let deposit2 = 0;
+          const exactAmtKey2 = allKeys.find(k => k.includes('第二期') && (k.includes('廠商') || k.includes('金額') || k.includes('款')) && !k.includes('家長') && !k.includes('確認') && !k.includes('方式') && !k.includes('時間'));
+          if (exactAmtKey2 && row[exactAmtKey2]) {
+            deposit2 = Number(row[exactAmtKey2].toString().replace(/[^0-9]/g, '')) || 0;
+          }
+
+          return {
+            rawName: name,
+            rawBdayNorm: normBday,
+            nameHash: nameHash,
+            birthdayHash: bdayHash,
+            room: room || '未設定',
+            total: totalCost,
+            deposit1: deposit1,
+            payMethod1: payMethod1,
+            payDate1: payDate1,
+            payLast5_1: payLast5_1,
+            payAmt1: payAmt1,
+            confirmColN: confirmColN,
+            deposit2: deposit2,
+            payMethod2: payMethod2,
+            payDate2: payDate2,
+            payLast5_2: payLast5_2,
+            payAmt2: payAmt2,
+            confirmColV: confirmColV
+          };
+        } catch (e) {
+          console.error("解析單一學生資料出錯:", e);
+          return null;
         }
-
-        // 第二期家長回報與確認 (Col O~R, V)
-        const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
-        const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
-        const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
-        const payAmt2 = (row['第二期家長回報匯款金額'] || '').toString().trim();
-        const confirmColV = (row['第二期金額家長確認'] || row['第二期確認'] || '尚未確認').toString().trim();
-
-        // 第二期廠商已收金額 (Col U)
-        let deposit2 = 0;
-        const exactAmtKey2 = allKeys.find(k => k.includes('第二期') && (k.includes('廠商') || k.includes('金額') || k.includes('款')) && !k.includes('家長') && !k.includes('確認') && !k.includes('方式') && !k.includes('時間'));
-        if (exactAmtKey2 && row[exactAmtKey2]) {
-          deposit2 = Number(row[exactAmtKey2].toString().replace(/[^0-9]/g, '')) || 0;
-        }
-
-        return {
-          rawName: name,
-          rawBdayNorm: normBday,
-          nameHash: nameHash,
-          birthdayHash: bdayHash,
-          room: room || '未設定',
-          total: totalCost,
-          deposit1: deposit1,
-          payMethod1: payMethod1,
-          payDate1: payDate1,
-          payLast5_1: payLast5_1,
-          payAmt1: payAmt1,
-          confirmColN: confirmColN,
-          deposit2: deposit2,
-          payMethod2: payMethod2,
-          payDate2: payDate2,
-          payLast5_2: payLast5_2,
-          payAmt2: payAmt2,
-          confirmColV: confirmColV
-        };
       }));
 
-      memoryStudents = memoryStudents.filter(s => s.rawName.length > 0 && !s.rawName.includes('<html'));
+      memoryStudents = memoryStudents.filter(s => s && s.rawName && s.rawName.length > 0 && !s.rawName.includes('<html'));
       if (memoryStudents.length === 0) return false;
 
       const statusEl = document.getElementById('syncStatus');
@@ -472,13 +492,18 @@
         return;
       }
 
-      const inputNameHash = await sha256(rawName);
-      const inputBdayHash = await sha256(normInputBday);
+      const cleanInputName = rawName.replace(/\s+/g, '');
+      const inputDigits = rawBdayInput.replace(/[^0-9]/g, '');
 
       const user = memoryStudents.find(student => {
-        const isHashMatch = student.nameHash === inputNameHash && student.birthdayHash === inputBdayHash;
-        const isTextMatch = student.rawName === rawName && student.rawBdayNorm === normInputBday;
-        return isHashMatch || isTextMatch;
+        const cleanRowName = student.rawName.replace(/\s+/g, '');
+        const isNameMatch = cleanRowName === cleanInputName;
+
+        const rowDigits = (student.rawBdayNorm || '').replace(/[^0-9]/g, '');
+        const isBdayMatch = (student.rawBdayNorm === normInputBday) || 
+                            (rowDigits.length > 0 && inputDigits.length > 0 && rowDigits === inputDigits);
+
+        return isNameMatch && isBdayMatch;
       });
 
       if (user) {
@@ -513,12 +538,12 @@
       document.getElementById('displayDepositTotal').innerText = totalPaid.toLocaleString();
       document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - totalPaid).toLocaleString();
 
-      // 🔴 1. 第一期動態渲染
+      // 第一期動態渲染
       const stage1Card = document.getElementById('stage1Card');
       const hasReport1 = currentUser.payDate1 || currentUser.payLast5_1 || currentUser.payAmt1;
 
       if (dep1 > 0) {
-        // 【階段三：廠商對銷成功 (Col M > 0)】 -> 顯示廠商核銷金額 + 開放家長進行「確認金額無誤」更新 Col N
+        // 【階段三：廠商對銷成功 (Col M > 0)】
         stage1Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage1Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
@@ -549,7 +574,7 @@
           </div>
         `;
       } else {
-        // 【階段一 & 二：廠商尚未入帳 (Col M == 0)】 -> 開放家長填寫/修改匯款資料，隱藏 Col N 確認按鈕
+        // 【階段一 & 二：廠商尚未入帳 (Col M == 0)】
         const statusBadge = hasReport1 
           ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
           : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
@@ -617,12 +642,12 @@
         `;
       }
 
-      // 🔴 2. 第二期動態渲染
+      // 第二期動態渲染
       const stage2Card = document.getElementById('stage2Card');
       const hasReport2 = currentUser.payDate2 || currentUser.payLast5_2 || currentUser.payAmt2;
 
       if (dep2 > 0) {
-        // 【階段三：廠商對銷成功 (Col U > 0)】 -> 顯示廠商核銷金額 + 開放家長進行「確認金額無誤」更新 Col V
+        // 【階段三：廠商對銷成功 (Col U > 0)】
         stage2Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage2Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
@@ -653,7 +678,7 @@
           </div>
         `;
       } else {
-        // 【階段一 & 二：廠商尚未入帳 (Col U == 0)】 -> 開放家長填寫/修改匯款資料，隱藏 Col V 確認按鈕
+        // 【階段一 & 二：廠商尚未入帳 (Col U == 0)】
         const statusBadge2 = hasReport2 
           ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
           : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
@@ -830,7 +855,7 @@
 
     function closeAdminPanel() {
       isAdminMode = false;
-      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('adminSection').classList.remove('hidden');
       document.getElementById('loginSection').classList.remove('hidden');
     }
 
