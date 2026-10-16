@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.8.9</title>
+  <title>中正弦樂團旅遊對帳系統 v5.9.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.9 極速同步版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.9.0 雙引擎診斷版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -53,13 +53,17 @@
           當前行程：2027 寒假花蓮旅行
         </span>
 
-        <div id="syncStatus" class="mt-3 text-xs text-slate-500 flex flex-col items-center justify-center gap-1 min-h-[32px]">
-          <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在透過 GAS 雲端連線讀取對帳資料...</div>
+        <!-- 動態連線狀態指示燈 -->
+        <div id="syncStatus" class="mt-3 text-xs text-slate-600 flex flex-col items-center justify-center gap-1 min-h-[40px]">
+          <div class="flex items-center gap-1.5">
+            <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>
+            <span>[1/3] 正在透過 GAS 雲端連線讀取對帳資料...</span>
+          </div>
         </div>
 
         <div class="mt-2 flex justify-center gap-2">
           <button type="button" onclick="fetchCurrentTripSheet(true)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg border border-indigo-200 transition font-medium">
-            <i class="fa-solid fa-arrows-rotate mr-1"></i>強制重新向 GAS 同步資料
+            <i class="fa-solid fa-arrows-rotate mr-1"></i>強制重新同步 (重新整理)
           </button>
         </div>
         
@@ -245,7 +249,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.9-sync-fixed</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.9.0-dual-engine</strong></span>
       </div>
     </div>
   </footer>
@@ -321,8 +325,10 @@
       fetchCurrentTripSheet(true);
     }
 
-    // 🔴 同步解析函數：速度與 vendor.html 一樣快速穩定
     function processRawRows(rawRows) {
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span>[2/3] 正在解析學員對帳清單...</span></div>`;
+
       if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) return false;
 
       let lastStudentName = "";
@@ -406,24 +412,36 @@
       memoryStudents = list;
       if (memoryStudents.length === 0) return false;
 
-      const statusEl = document.getElementById('syncStatus');
-      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>已成功從 GAS 雲端同步 ${memoryStudents.length} 筆對帳資料</span>`;
+      statusEl.innerHTML = `<span class="text-emerald-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>[3/3] 已成功同步 ${memoryStudents.length} 筆對帳資料</span>`;
       
       if (isAdminMode) renderAdminDashboard();
       return true;
     }
 
+    // 🔴 雙引擎連線（Fetch + JSONP 超時降級處理）
     async function fetchCurrentTripSheet(forceRefresh = false) {
       const statusEl = document.getElementById('syncStatus');
-      statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在連線 GAS API 讀取試算表資料...`;
+      statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span>[1/3] 正在向 GAS 雲端發送連線請求...</span></div>`;
+
+      const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&action=getData&_t=${Date.now()}`;
 
       try {
-        const fetchUrl = `${GAS_API_URL}?trip=${currentTripKey}&action=getData&_t=${Date.now()}`;
-        const res = await fetch(fetchUrl, { redirect: "follow" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6秒逾時自動中止
 
-        if (!res.ok) throw new Error(`HTTP 狀態碼: ${res.status}`);
+        const res = await fetch(fetchUrl, { redirect: "follow", signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`HTTP 錯誤狀態: ${res.status}`);
         
-        const resultJson = await res.json();
+        const rawText = await res.text();
+        let resultJson;
+        try {
+          resultJson = JSON.parse(rawText);
+        } catch (e) {
+          throw new Error("GAS 回傳非 JSON 格式（可能是權限問題或 HTML 頁面）");
+        }
+
         if (resultJson.status === "success" && Array.isArray(resultJson.data)) {
           const success = processRawRows(resultJson.data);
           if (!success) {
@@ -433,14 +451,47 @@
           throw new Error(resultJson.message || "GAS 回傳 JSON 格式未符合預期");
         }
       } catch (err) {
-        console.error("GAS 連線失敗:", err);
+        console.warn("Fetch 引擎失敗，切換至 JSONP 備用連線引擎:", err.message);
+        statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-amber-600"></i><span>[1/3] 標準連線受阻，正在切換 JSONP 備用引擎...</span></div>`;
+        
+        fetchWithJSONP(fetchUrl);
+      }
+    }
+
+    // JSONP 備用連線引擎
+    function fetchWithJSONP(baseUrl) {
+      const statusEl = document.getElementById('syncStatus');
+      const callbackName = 'gasCallback_' + Date.now();
+      
+      const script = document.createElement('script');
+      script.src = `${baseUrl}&callback=${callbackName}`;
+
+      window[callbackName] = function(resultJson) {
+        delete window[callbackName];
+        document.body.removeChild(script);
+
+        if (resultJson && resultJson.status === "success" && Array.isArray(resultJson.data)) {
+          const success = processRawRows(resultJson.data);
+          if (!success) {
+            statusEl.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>JSONP 連線成功，但無有效資料。</span>`;
+          }
+        } else {
+          statusEl.innerHTML = `<span class="text-rose-600 font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>JSONP 解析失敗: ${resultJson.message || '無回應資料'}</span>`;
+        }
+      };
+
+      script.onerror = function() {
+        delete window[callbackName];
+        document.body.removeChild(script);
         statusEl.innerHTML = `
           <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-center font-medium">
-            <i class="fa-solid fa-circle-exclamation text-rose-600 mr-1"></i> GAS 連線失敗：${err.message}
+            <i class="fa-solid fa-circle-exclamation text-rose-600 mr-1"></i> 雙引擎連線皆失敗，請點擊「強迫重新同步」按鈕或檢查網路連線。
             <button onclick="fetchCurrentTripSheet(true)" class="ml-2 underline text-indigo-600 font-bold">重試</button>
           </div>
         `;
-      }
+      };
+
+      document.body.appendChild(script);
     }
 
     function recordAccessLog(studentName) {
@@ -475,7 +526,7 @@
       }
 
       if (!memoryStudents || memoryStudents.length === 0) {
-        document.getElementById('loginErrorText').innerText = "系統尚未連線成功，請點擊「強制重新向 GAS 同步」按鈕。";
+        document.getElementById('loginErrorText').innerText = "系統尚未連線成功，請點擊「強制重新同步」按鈕。";
         document.getElementById('loginError').classList.remove('hidden');
         return;
       }
