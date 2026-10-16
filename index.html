@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.8.4</title>
+  <title>中正弦樂團旅遊對帳系統 v5.8.6</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,7 +19,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.4 完整優化版</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.8.6 三階段邏輯修正版</span>
           </div>
           <p class="hidden sm:block text-indigo-200 text-xs">第一期/第二期雙階段獨立匯款填寫區 (Col G~V 對齊)</p>
         </div>
@@ -57,7 +57,6 @@
           <div><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 正在透過 GAS 雲端連線讀取對帳資料...</div>
         </div>
 
-        <!-- 強制重新同步按鈕 -->
         <div class="mt-2 flex justify-center gap-2">
           <button type="button" onclick="fetchCurrentTripSheet(true)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg border border-indigo-200 transition font-medium">
             <i class="fa-solid fa-arrows-rotate mr-1"></i>強制重新向 GAS 同步資料
@@ -130,10 +129,10 @@
           <span class="text-xs text-slate-400 font-normal">分期對帳狀態</span>
         </h3>
         
-        <!-- 第一期卡片 (由 JS 動態決定 唯讀核銷 或是 開放填寫表單) -->
+        <!-- 第一期卡片 (動態渲染) -->
         <div id="stage1Card"></div>
 
-        <!-- 第二期卡片 (由 JS 動態決定 唯讀核銷 或是 開放填寫表單) -->
+        <!-- 第二期卡片 (動態渲染) -->
         <div id="stage2Card"></div>
 
       </div>
@@ -212,8 +211,8 @@
                 <th class="p-3">房型/房間</th>
                 <th class="p-3">應繳總額</th>
                 <th class="p-3">已繳總額</th>
-                <th class="p-3">第一期對帳</th>
-                <th class="p-3">第二期對帳</th>
+                <th class="p-3">第一期對帳 (Col N)</th>
+                <th class="p-3">第二期對帳 (Col V)</th>
               </tr>
             </thead>
             <tbody id="adminStudentTbody" class="divide-y divide-slate-100"></tbody>
@@ -246,7 +245,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.4-credit-card-opt</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.8.6-three-stage-logic</strong></span>
       </div>
     </div>
   </footer>
@@ -348,7 +347,7 @@
         const nameHash = name ? await sha256(name) : '';
         const bdayHash = normBday ? await sha256(normBday) : '';
 
-        // 第一期家長回報資訊 (Col G~J)
+        // 第一期家長回報與確認 (Col G~J, N)
         const payMethod1 = (row['第一期家長回報匯款方式'] || '').toString().trim();
         const payDate1 = (row['第一期家長回報匯款日期'] || '').toString().trim();
         const payLast5_1 = (row['第一期家長回報帳號後五碼'] || '').toString().trim();
@@ -363,7 +362,7 @@
           deposit1 = Number(row[exactAmtKey1].toString().replace(/[^0-9]/g, '')) || 0;
         }
 
-        // 第二期家長回報資訊 (Col O~R)
+        // 第二期家長回報與確認 (Col O~R, V)
         const payMethod2 = (row['第二期家長回報匯款方式'] || '').toString().trim();
         const payDate2 = (row['第二期家長回報匯款日期'] || '').toString().trim();
         const payLast5_2 = (row['第二期家長回報帳號後五碼'] || '').toString().trim();
@@ -514,68 +513,74 @@
       document.getElementById('displayDepositTotal').innerText = totalPaid.toLocaleString();
       document.getElementById('displayBalance').innerText = Math.max(0, Number(currentUser.total || 0) - totalPaid).toLocaleString();
 
-      // 第一期卡片動態渲染
+      // 🔴 1. 第一期動態渲染
       const stage1Card = document.getElementById('stage1Card');
       const hasReport1 = currentUser.payDate1 || currentUser.payLast5_1 || currentUser.payAmt1;
 
       if (dep1 > 0) {
-        // 1. 廠商已對銷入帳 -> 顯示已收到 + 家長對帳點選按鈕
-        stage1Card.className = "p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3";
+        // 【階段三：廠商對銷成功 (Col M > 0)】 -> 顯示廠商核銷金額 + 開放家長進行「確認金額無誤」更新 Col N
+        stage1Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage1Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-2">
               <span class="font-bold text-slate-800 text-base">第一期</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">已收到</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>廠商已入帳對銷
+              </span>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-400">第一期已收金額</p>
-              <p class="text-xl font-bold text-slate-800">NT$ ${dep1.toLocaleString()}</p>
+              <p class="text-xs text-slate-400">第一期核銷金額</p>
+              <p class="text-xl font-bold text-emerald-700">NT$ ${dep1.toLocaleString()}</p>
             </div>
           </div>
-          <div class="pt-2 border-t border-slate-200/80 flex justify-between items-center text-xs">
+          <div class="pt-3 border-t border-emerald-200/80 flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-700"><i class="fa-solid fa-shield-check text-emerald-600 mr-1"></i>第一期對帳狀態：</span>
-              <span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md font-bold">${currentUser.confirmColN || '家長已確認'}</span>
+              <span class="font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-indigo-600 mr-1"></i>第一期家長確認狀態：</span>
+              <span class="bg-indigo-100 text-indigo-900 px-2.5 py-1 rounded-md font-bold">${currentUser.confirmColN || '待確認'}</span>
             </div>
             <div class="flex gap-2">
-              <button onclick="sendDepositConfirmation('第一期', '家長已確認')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded border border-emerald-200 font-medium transition">
-                <i class="fa-solid fa-check mr-1"></i>確認金額無誤
+              <button onclick="sendDepositConfirmation('第一期', '家長已確認')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow transition flex items-center gap-1">
+                <i class="fa-solid fa-check"></i> 確認金額無誤 (更新Col N)
               </button>
-              <button onclick="sendDepositConfirmation('第一期', '匯款有問題')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-2.5 py-1 rounded border border-rose-200 font-medium transition">
-                <i class="fa-solid fa-exclamation mr-1"></i>! 回報問題
+              <button onclick="sendDepositConfirmation('第一期', '金額有問題')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-1.5 rounded-lg border border-rose-200 font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-triangle-exclamation"></i> ! 回報問題
               </button>
             </div>
           </div>
         `;
       } else {
-        // 2. 廠商尚未對銷 (待繳費/對帳中) -> 隱藏確認按鈕
-        stage1Card.className = "p-5 rounded-2xl bg-amber-50/40 border border-amber-200 space-y-4";
+        // 【階段一 & 二：廠商尚未入帳 (Col M == 0)】 -> 開放家長填寫/修改匯款資料，隱藏 Col N 確認按鈕
+        const statusBadge = hasReport1 
+          ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
+          : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
+
+        stage1Card.className = "p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4";
         stage1Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-amber-900 text-base">第一期</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">待繳費/對帳中</span>
+              <span class="font-bold text-slate-800 text-base">第一期</span>
+              ${statusBadge}
             </div>
             <div class="text-right">
-              <span class="text-xs text-amber-800/80 bg-amber-100/80 px-2.5 py-1 rounded-md font-medium">
-                <i class="fa-solid fa-pen-to-square mr-1"></i>請於下方填寫匯款資料
+              <span class="text-xs text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md font-medium">
+                <i class="fa-solid fa-pen-to-square mr-1 text-indigo-600"></i>家長匯款填寫區 (Col G~J)
               </span>
             </div>
           </div>
 
-          <div class="bg-white p-4 rounded-xl border border-indigo-100 space-y-3">
+          <div class="bg-white p-4 rounded-xl border border-indigo-100 space-y-3 shadow-sm">
             <div class="flex justify-between items-center">
               <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
-                <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> 第一期家長匯款資訊填寫回報：
+                <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> 第一期家長匯款資訊回報：
               </span>
               <span class="px-2.5 py-1 rounded-md text-[11px] ${currentUser.confirmColN && currentUser.confirmColN.includes('已') ? 'bg-indigo-100 text-indigo-800 font-bold' : 'bg-slate-100 text-slate-600'}">
-                ${currentUser.confirmColN || '尚未回報'}
+                狀態：${currentUser.confirmColN || '尚未回報'}
               </span>
             </div>
 
             ${hasReport1 ? `
-              <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-                <i class="fa-solid fa-circle-check mr-1"></i>已填寫回報：[${currentUser.payMethod1 || '轉帳/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${currentUser.payAmt1} (末五碼: ${currentUser.payLast5_1})
+              <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
               </div>
             ` : ''}
 
@@ -612,68 +617,74 @@
         `;
       }
 
-      // 第二期卡片動態渲染
+      // 🔴 2. 第二期動態渲染
       const stage2Card = document.getElementById('stage2Card');
       const hasReport2 = currentUser.payDate2 || currentUser.payLast5_2 || currentUser.payAmt2;
 
       if (dep2 > 0) {
-        // 1. 廠商已對銷入帳 -> 顯示已收到 + 家長對帳點選按鈕
-        stage2Card.className = "p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3";
+        // 【階段三：廠商對銷成功 (Col U > 0)】 -> 顯示廠商核銷金額 + 開放家長進行「確認金額無誤」更新 Col V
+        stage2Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage2Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-2">
               <span class="font-bold text-slate-800 text-base">第二期</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">已收到</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>廠商已入帳對銷
+              </span>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-400">第二期已收金額</p>
-              <p class="text-xl font-bold text-slate-800">NT$ ${dep2.toLocaleString()}</p>
+              <p class="text-xs text-slate-400">第二期核銷金額</p>
+              <p class="text-xl font-bold text-emerald-700">NT$ ${dep2.toLocaleString()}</p>
             </div>
           </div>
-          <div class="pt-2 border-t border-slate-200/80 flex justify-between items-center text-xs">
+          <div class="pt-3 border-t border-emerald-200/80 flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-700"><i class="fa-solid fa-shield-check text-emerald-600 mr-1"></i>第二期對帳狀態：</span>
-              <span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md font-bold">${currentUser.confirmColV || '家長已確認'}</span>
+              <span class="font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-indigo-600 mr-1"></i>第二期家長確認狀態：</span>
+              <span class="bg-indigo-100 text-indigo-900 px-2.5 py-1 rounded-md font-bold">${currentUser.confirmColV || '待確認'}</span>
             </div>
             <div class="flex gap-2">
-              <button onclick="sendDepositConfirmation('第二期', '家長已確認')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded border border-emerald-200 font-medium transition">
-                <i class="fa-solid fa-check mr-1"></i>確認金額無誤
+              <button onclick="sendDepositConfirmation('第二期', '家長已確認')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow transition flex items-center gap-1">
+                <i class="fa-solid fa-check"></i> 確認金額無誤 (更新Col V)
               </button>
-              <button onclick="sendDepositConfirmation('第二期', '匯款有問題')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-2.5 py-1 rounded border border-rose-200 font-medium transition">
-                <i class="fa-solid fa-exclamation mr-1"></i>! 回報問題
+              <button onclick="sendDepositConfirmation('第二期', '金額有問題')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-1.5 rounded-lg border border-rose-200 font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-triangle-exclamation"></i> ! 回報問題
               </button>
             </div>
           </div>
         `;
       } else {
-        // 2. 廠商尚未對銷 (待繳費/對帳中) -> 隱藏確認按鈕
-        stage2Card.className = "p-5 rounded-2xl bg-amber-50/40 border border-amber-200 space-y-4";
+        // 【階段一 & 二：廠商尚未入帳 (Col U == 0)】 -> 開放家長填寫/修改匯款資料，隱藏 Col V 確認按鈕
+        const statusBadge2 = hasReport2 
+          ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
+          : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
+
+        stage2Card.className = "p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4";
         stage2Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-amber-900 text-base">第二期</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">待繳費/對帳中</span>
+              <span class="font-bold text-slate-800 text-base">第二期</span>
+              ${statusBadge2}
             </div>
             <div class="text-right">
-              <span class="text-xs text-amber-800/80 bg-amber-100/80 px-2.5 py-1 rounded-md font-medium">
-                <i class="fa-solid fa-pen-to-square mr-1"></i>請於下方填寫匯款資料
+              <span class="text-xs text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md font-medium">
+                <i class="fa-solid fa-pen-to-square mr-1 text-indigo-600"></i>家長匯款填寫區 (Col O~R)
               </span>
             </div>
           </div>
 
-          <div class="bg-white p-4 rounded-xl border border-indigo-100 space-y-3">
+          <div class="bg-white p-4 rounded-xl border border-indigo-100 space-y-3 shadow-sm">
             <div class="flex justify-between items-center">
               <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
-                <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> 第二期家長匯款資訊填寫回報：
+                <i class="fa-solid fa-money-bill-transfer text-indigo-600"></i> 第二期家長匯款資訊回報：
               </span>
               <span class="px-2.5 py-1 rounded-md text-[11px] ${currentUser.confirmColV && currentUser.confirmColV.includes('已') ? 'bg-indigo-100 text-indigo-800 font-bold' : 'bg-slate-100 text-slate-600'}">
-                ${currentUser.confirmColV || '尚未回報'}
+                狀態：${currentUser.confirmColV || '尚未回報'}
               </span>
             </div>
 
             ${hasReport2 ? `
-              <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-                <i class="fa-solid fa-circle-check mr-1"></i>已填寫回報：[${currentUser.payMethod2 || '轉帳/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${currentUser.payAmt2} (末五碼: ${currentUser.payLast5_2})
+              <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
               </div>
             ` : ''}
 
@@ -746,7 +757,7 @@
 
         const result = await res.json();
         if (result.status === "success") {
-          alert(`感謝您！${stageName}的匯款回報已成功寫入系統。`);
+          alert(`感謝您！${stageName}的匯款回報已成功寫入試算表。`);
           await fetchCurrentTripSheet(true);
           const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
           if (freshUser) currentUser = freshUser;
@@ -756,10 +767,7 @@
         }
       } catch (err) {
         alert("發送失敗，請確認網路連線後重試！");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1"></i>儲存${stageName}匯款資訊`;
-      }
+      } font-medium
     }
 
     async function sendDepositConfirmation(stageName, statusValue) {
@@ -779,7 +787,7 @@
 
         const result = await res.json();
         if (result.status === "success") {
-          alert(`已成功更新【${stageName}】對帳狀態：${statusValue}`);
+          alert(`已成功更新【${stageName}】家長對帳狀態：${statusValue}`);
           await fetchCurrentTripSheet(true);
           const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
           if (freshUser) currentUser = freshUser;
