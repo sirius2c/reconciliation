@@ -748,6 +748,42 @@
 
     // 初始化載入
     fetchCurrentTripSheet(false);
+// 發送家長確認/回報問題寫回 Google 試算表 Col J
+async function sendDepositConfirmation(statusValue) {
+  if (!currentUser || !currentUser.rawName) {
+    alert("請先登入團員身分！");
+    return;
+  }
+
+  const confirmBtn = document.getElementById('submitConfirmBtn');
+  if (confirmBtn) confirmBtn.disabled = true;
+
+  try {
+    const response = await fetch(GAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "confirmDeposit",
+        studentName: currentUser.rawName,
+        status: statusValue
+      })
+    });
+
+    const result = await response.json();
+    if (result.status === "success") {
+      alert(`已成功寫回試算表：${statusValue}`);
+      // 重新整理資料快取
+      fetchCurrentTripSheet(true);
+    } else {
+      alert(`寫回失敗：${result.message}`);
+    }
+  } catch (err) {
+    alert("連線發送失敗，請稍後重試。");
+    console.error(err);
+  } finally {
+    if (confirmBtn) confirmBtn.disabled = false;
+  }
+}
   </script>
 </body>
 </html>
