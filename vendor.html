@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中正弦樂團 - 合作旅行社廠商對帳後台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 flex flex-col justify-between">
+
+  <!-- Header -->
+  <header class="bg-slate-800 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center text-slate-900 font-bold">
+          <i class="fa-solid fa-building-user text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base md:text-lg font-bold leading-tight">中正弦樂團 - 合作旅行社帳務系統</h1>
+          <p class="text-xs text-slate-400">專屬廠商對帳管理面板</p>
+        </div>
+      </div>
+
+      <div id="vendorHeaderRight" class="hidden flex items-center gap-3">
+        <span id="currentVendorTag" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-3 py-1 rounded-full font-medium">
+          --
+        </span>
+        <button onclick="vendorLogout()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg transition">
+          <i class="fa-solid fa-right-from-bracket"></i> 登出
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 mb-auto w-full">
+
+    <!-- 1. 廠商登入區塊 -->
+    <div id="vendorLoginSection" class="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6 border border-slate-200 mt-8">
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <i class="fa-solid fa-lock text-xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-slate-800">旅行社廠商登入</h2>
+        <p class="text-slate-500 text-xs mt-1">請選擇負責行程並輸入專屬帳號密碼</p>
+      </div>
+
+      <form id="vendorLoginForm" class="space-y-4" onsubmit="event.preventDefault(); execVendorLogin();">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">對應行程</label>
+          <select id="vendorTripSelector" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="hualien2027" selected>2027 寒假花蓮旅行 (悠陽旅行社)</option>
+            <option value="vienna2027">2027 暑假維也納音樂節 (合作旅行社)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">廠商專用帳號</label>
+          <input type="text" id="vendorUsername" placeholder="請輸入帳號" required
+            class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">廠商密碼</label>
+          <input type="password" id="vendorPassword" placeholder="請輸入密碼" required
+            class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div id="vendorLoginError" class="hidden text-rose-500 text-xs text-center bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+          帳號或密碼不正確，請重新核對！
+        </div>
+
+        <button type="submit" id="vendorLoginBtn" class="w-full bg-slate-800 hover:bg-slate-900 text-amber-400 font-bold py-2.5 rounded-lg shadow transition text-sm">
+          驗證登入
+        </button>
+      </form>
+      
+      <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400 text-center">
+        預設花蓮行程帳號: <code class="text-slate-600 font-mono">yoyang</code> / 密碼: <code class="text-slate-600 font-mono">hualien2027password</code>
+      </div>
+    </div>
+
+    <!-- 2. 廠商對帳面板 Dashboard -->
+    <div id="vendorDashboard" class="hidden space-y-6">
+      <!-- 統計摘要區塊 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-slate-400 text-xs font-medium">團員人數 (排除家屬)</p>
+          <p class="text-2xl font-bold text-slate-800 mt-1"><span id="vTotalStudents">0</span> 人</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-slate-400 text-xs font-medium">行程總應收金額</p>
+          <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="vTotalAmount">0</span></p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-emerald-100 bg-emerald-50/20 shadow-sm">
+          <p class="text-emerald-700 text-xs font-medium">家長已確認無誤</p>
+          <p class="text-2xl font-bold text-emerald-600 mt-1"><span id="vConfirmedCount">0</span> 人</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-rose-100 bg-rose-50/20 shadow-sm">
+          <p class="text-rose-700 text-xs font-medium">回報匯款有問題</p>
+          <p class="text-2xl font-bold text-rose-600 mt-1"><span id="vIssueCount">0</span> 人</p>
+        </div>
+      </div>
+
+      <!-- 學員對帳狀態總表 -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-amber-500"></i> 家長對帳與收款核對清單
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">即時同步 Google 試算表 (Col J 家長確認狀態)</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="vFilterStatus" onchange="renderVendorTable()" class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50">
+              <option value="all" selected>顯示全部狀態</option>
+              <option value="confirmed">僅顯示：家長已確認</option>
+              <option value="issue">僅顯示：匯款有問題</option>
+              <option value="unconfirmed">僅顯示：未確認</option>
+            </select>
+
+            <input type="text" id="vSearchInput" oninput="renderVendorTable()" placeholder="搜尋學生姓名..." 
+              class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500">
+
+            <button onclick="reloadVendorData()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+              <i class="fa-solid fa-arrows-rotate"></i> 重新整理
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left text-slate-600">
+            <thead class="bg-slate-100 text-slate-700 font-bold border-b">
+              <tr>
+                <th class="p-3">學生姓名</th>
+                <th class="p-3">第一期家長對帳狀態 (Col J)</th>
+                <th class="p-3">房型/房間</th>
+                <th class="p-3">應繳總額</th>
+                <th class="p-3">第一期已繳金額</th>
+                <th class="p-3">剩餘尾款</th>
+              </tr>
+            </thead>
+            <tbody id="vendorTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 text-slate-400 text-xs py-4 text-center">
+    © 中正弦樂團家長後援會 & 合作旅行社帳務對接系統
+  </footer>
+
+  <script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbykQY82uldX3_O9DWqgY7lnthJRZ2Dwa_kpFfgI3ItXawttb1RrKhwOxbPm5COvALtL/exec";
+
+    let currentVendorTrip = "hualien2027";
+    let vendorDataList = [];
+
+    function cleanRoomName(roomStr) {
+      if (!roomStr) return '未設定';
+      return roomStr.toString().replace(/[\s\-_#＃()（）]*[0-9０-９]+$/g, '').trim() || '未設定';
+    }
+
+    function isFamilyMemberName(name) {
+      if (!name) return true;
+      const familyKeywords = ['媽', '爸', '家人', '師丈', '老師', '奶奶', '家屬', '親屬'];
+      return familyKeywords.some(kw => name.includes(kw));
+    }
+
+    async function execVendorLogin() {
+      const trip = document.getElementById('vendorTripSelector').value;
+      const user = (document.getElementById('vendorUsername').value || "").trim();
+      const pwd = (document.getElementById('vendorPassword').value || "").trim();
+      const errEl = document.getElementById('vendorLoginError');
+      const btn = document.getElementById('vendorLoginBtn');
+
+      if (!user || !pwd) {
+        alert("請輸入帳號與密碼！");
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> 正在驗證登入...`;
+
+      try {
+        const fetchUrl = `${GAS_API_URL}?action=vendorLogin&trip=${trip}&username=${encodeURIComponent(user)}&password=${encodeURIComponent(pwd)}&_t=${Date.now()}`;
+        const res = await fetch(fetchUrl);
+        const result = await res.json();
+
+        if (result.status === "success") {
+          currentVendorTrip = trip;
+          document.getElementById('vendorLoginSection').classList.add('hidden');
+          document.getElementById('vendorDashboard').classList.remove('hidden');
+          document.getElementById('vendorHeaderRight').classList.remove('hidden');
+          document.getElementById('currentVendorTag').innerText = `${result.vendorName} (${result.tripTitle})`;
+
+          processVendorData(result.data);
+        } else {
+          errEl.innerText = result.message || "帳號或密碼不正確！";
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        alert("連線驗證失敗，請重新確認！");
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `驗證登入`;
+      }
+    }
+
+    function processVendorData(rawRows) {
+      if (!rawRows || !Array.isArray(rawRows)) return;
+
+      const cleanRows = rawRows.filter(r => {
+        const name = (r['學生姓名'] || r['姓名'] || '').toString().trim();
+        return name && !isFamilyMemberName(name);
+      });
+
+      const studentMap = new Map();
+
+      cleanRows.forEach(row => {
+        const name = (row['學生姓名'] || row['姓名'] || '').toString().trim();
+        const room = cleanRoomName(row['分房(新)'] || row['分房'] || row['房型']);
+        const total = Number((row['總費用'] || row['費用'] || '0').toString().replace(/[^0-9]/g, ''));
+        const confirmColJ = (row['第一期金額家長確認'] || row['家長確認'] || row['第一期確認'] || '尚未確認').toString().trim();
+
+        // 整理第一期金額
+        let deposit1 = 0;
+        Object.keys(row).forEach(k => {
+          if ((k.includes('一期') || k.includes('訂金')) && k.includes('金額')) {
+            deposit1 = Number((row[k] || '0').toString().replace(/[^0-9]/g, ''));
+          }
+        });
+
+        if (!studentMap.has(name)) {
+          studentMap.set(name, {
+            name: name,
+            room: room,
+            total: total,
+            deposit1: deposit1,
+            confirmColJ: confirmColJ
+          });
+        }
+      });
+
+      vendorDataList = Array.from(studentMap.values());
+      renderVendorDashboard();
+    }
+
+    function renderVendorDashboard() {
+      let totalAmount = 0;
+      let confirmedCount = 0;
+      let issueCount = 0;
+
+      vendorDataList.forEach(s => {
+        totalAmount += s.total;
+        if (s.confirmColJ.includes("已確認") || s.confirmColJ.includes("無誤")) confirmedCount++;
+        if (s.confirmColJ.includes("有問題")) issueCount++;
+      });
+
+      document.getElementById('vTotalStudents').innerText = vendorDataList.length;
+      document.getElementById('vTotalAmount').innerText = totalAmount.toLocaleString();
+      document.getElementById('vConfirmedCount').innerText = confirmedCount;
+      document.getElementById('vIssueCount').innerText = issueCount;
+
+      renderVendorTable();
+    }
+
+    function renderVendorTable() {
+      const search = (document.getElementById('vSearchInput').value || "").trim().toLowerCase();
+      const filter = document.getElementById('vFilterStatus').value;
+      const tbody = document.getElementById('vendorTableBody');
+
+      let list = vendorDataList.filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(search);
+        
+        let matchFilter = true;
+        if (filter === 'confirmed') matchFilter = s.confirmColJ.includes("已確認") || s.confirmColJ.includes("無誤");
+        if (filter === 'issue') matchFilter = s.confirmColJ.includes("有問題");
+        if (filter === 'unconfirmed') matchFilter = !s.confirmColJ.includes("已確認") && !s.confirmColJ.includes("有問題");
+
+        return matchSearch && matchFilter;
+      });
+
+      tbody.innerHTML = list.map(s => {
+        const balance = Math.max(0, s.total - s.deposit1);
+
+        let badgeClass = "bg-slate-100 text-slate-600";
+        if (s.confirmColJ.includes("已確認") || s.confirmColJ.includes("無誤")) {
+          badgeClass = "bg-emerald-100 text-emerald-800 font-bold border border-emerald-300";
+        } else if (s.confirmColJ.includes("有問題")) {
+          badgeClass = "bg-rose-100 text-rose-800 font-bold border border-rose-300";
+        }
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-bold text-slate-800">${s.name}</td>
+            <td class="p-3"><span class="px-2.5 py-1 rounded-md text-[11px] ${badgeClass}">${s.confirmColJ}</span></td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
+            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.deposit1.toLocaleString()}</td>
+            <td class="p-3 text-amber-600 font-bold">NT$ ${balance.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function reloadVendorData() {
+      execVendorLogin();
+    }
+
+    function vendorLogout() {
+      vendorDataList = [];
+      document.getElementById('vendorDashboard').classList.add('hidden');
+      document.getElementById('vendorHeaderRight').classList.add('hidden');
+      document.getElementById('vendorLoginSection').classList.remove('hidden');
+      document.getElementById('vendorLoginForm').reset();
+    }
+  </script>
+</body>
+</html>
