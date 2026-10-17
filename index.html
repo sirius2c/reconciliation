@@ -665,7 +665,7 @@
 
             ${hasReport1 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
               </div>
             ` : ''}
 
@@ -765,7 +765,7 @@
 
             ${hasReport2 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
               </div>
             ` : ''}
 
