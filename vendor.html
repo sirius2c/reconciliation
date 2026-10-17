@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.8.8</title>
+  <title>中正弦樂團 - 合作旅行社廠商對帳後台 v5.9.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -18,7 +18,7 @@
         </div>
         <div>
           <h1 class="text-base md:text-lg font-bold leading-tight">中正弦樂團 - 合作旅行社帳務系統</h1>
-          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (v5.8.8 SHA-256 加密同步版)</p>
+          <p class="text-xs text-slate-400">專屬廠商對帳管理面板 (v5.9.0 分期精準對帳版)</p>
         </div>
       </div>
 
@@ -76,6 +76,23 @@
 
     <!-- 2. 廠商對帳面板 Dashboard -->
     <div id="vendorDashboard" class="hidden space-y-6">
+      
+      <!-- 期別切換列 -->
+      <div class="bg-slate-800 text-white p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 shadow-md">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-filter text-amber-400"></i>
+          <span class="font-bold text-sm">目前對帳期別：</span>
+          <select id="vTermSelector" onchange="renderVendorDashboard()" class="bg-slate-700 text-amber-300 text-sm font-bold border border-slate-600 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="1" selected>第一期對帳 (Col N)</option>
+            <option value="2">第二期對帳 (Col V)</option>
+          </select>
+        </div>
+        <div class="text-xs text-slate-300">
+          * 已自動排除家屬，統計數據與未對帳名單均將依選定之期別獨立判定。
+        </div>
+      </div>
+
+      <!-- 關鍵數據卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-slate-400 text-xs font-medium">團員人數 (排除家屬)</p>
@@ -86,12 +103,30 @@
           <p class="text-2xl font-bold text-slate-800 mt-1">NT$ <span id="vTotalAmount">0</span></p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-emerald-100 bg-emerald-50/20 shadow-sm">
-          <p class="text-emerald-700 text-xs font-medium">家長已回報/已確認總計</p>
+          <p class="text-emerald-700 text-xs font-medium"><span class="termText">第一期</span>已回報/已確認</p>
           <p class="text-2xl font-bold text-emerald-600 mt-1"><span id="vConfirmedCount">0</span> 人</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-rose-100 bg-rose-50/20 shadow-sm">
-          <p class="text-rose-700 text-xs font-medium">回報匯款有問題</p>
+          <p class="text-rose-700 text-xs font-medium"><span class="termText">第一期</span>回報/對帳有問題</p>
           <p class="text-2xl font-bold text-rose-600 mt-1"><span id="vIssueCount">0</span> 人</p>
+        </div>
+      </div>
+
+      <!-- 未對帳學生名單區塊 (精準排除當期已對帳學員) -->
+      <div class="bg-white rounded-2xl border border-rose-200 shadow-sm p-5 space-y-3">
+        <div class="flex justify-between items-center pb-2 border-b border-rose-100">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-user-xmark text-rose-500 text-base"></i>
+            <h3 class="text-sm font-bold text-slate-800">
+              <span class="termText">第一期</span>未對帳 / 待確認學生名單 (<span id="unconfirmedCount" class="text-rose-600">0</span> 人)
+            </h3>
+          </div>
+          <button onclick="copyUnconfirmedList()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-medium px-3 py-1 rounded-lg transition flex items-center gap-1.5">
+            <i class="fa-solid fa-copy"></i> 複製提醒名單
+          </button>
+        </div>
+        <div id="unconfirmedTagList" class="flex flex-wrap gap-2 pt-1 max-h-48 overflow-y-auto">
+          <!-- 學生標籤會動態渲染於此 -->
         </div>
       </div>
 
@@ -100,7 +135,7 @@
         <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-4">
           <div>
             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-amber-500"></i> 第一期與第二期家長匯款回報 & 對帳確認 (Col N / Col V)
+              <i class="fa-solid fa-list-check text-amber-500"></i> 第一期與第二期家長匯款回報 & 對帳確認
             </h3>
             <p class="text-xs text-slate-400 mt-0.5">第一期：Col G~J 回報 / Col M 廠商入帳 / Col N 確認 | 第二期：Col O~R 回報 / Col U 廠商入帳 / Col V 確認</p>
           </div>
@@ -108,9 +143,9 @@
           <div class="flex flex-wrap items-center gap-2">
             <select id="vFilterStatus" onchange="renderVendorTable()" class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50">
               <option value="all" selected>顯示全部學員</option>
-              <option value="reported1">僅顯示：第一期家長已回報/確認</option>
-              <option value="reported2">僅顯示：第二期家長已回報/確認</option>
-              <option value="issue">僅顯示：對帳有問題</option>
+              <option value="unconfirmed">僅顯示：【當期】未對帳/待確認</option>
+              <option value="confirmed">僅顯示：【當期】家長已回報/確認</option>
+              <option value="issue">僅顯示：【當期】對帳有問題</option>
             </select>
 
             <input type="text" id="vSearchInput" oninput="renderVendorTable()" placeholder="搜尋學生姓名..." 
@@ -147,7 +182,7 @@
   </main>
 
   <footer class="bg-white border-t border-slate-200 text-slate-400 text-xs py-4 text-center">
-    © 中正弦樂團家長後援會 & 合作旅行社帳務對接系統 v5.8.8-crypto-sync
+    © 中正弦樂團家長後援會 & 合作旅行社帳務對接系統 v5.9.0-crypto-sync
   </footer>
 
   <script>
@@ -167,7 +202,6 @@
       return familyKeywords.some(kw => name.includes(kw));
     }
 
-    // 🔴 與 index.html 完全對齊的 SHA-256 加密與防爆降級函式
     async function sha256(str) {
       if (!str) return "";
       try {
@@ -198,7 +232,6 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> 正在驗證登入...`;
 
       try {
-        // 帶入 SHA-256 雜湊密碼以供加密驗證
         const pwdHash = await sha256(pwd);
         const fetchUrl = `${GAS_API_URL}?action=vendorLogin&trip=${trip}&username=${encodeURIComponent(user)}&password=${encodeURIComponent(pwd)}&passwordHash=${encodeURIComponent(pwdHash)}&_t=${Date.now()}`;
         const res = await fetch(fetchUrl, { redirect: "follow" });
@@ -294,21 +327,57 @@
       renderVendorDashboard();
     }
 
+    // 判斷學生在選定期別下是否已完成確認/對帳
+    function isStudentConfirmedInTerm(student, term) {
+      const confirmStr = term === "1" ? student.confirmColN : student.confirmColV;
+      return confirmStr.includes("已") || confirmStr.includes("無誤");
+    }
+
+    // 判斷學生在選定期別下是否對帳有問題
+    function isStudentIssueInTerm(student, term) {
+      const confirmStr = term === "1" ? student.confirmColN : student.confirmColV;
+      return confirmStr.includes("有問題");
+    }
+
+    // 判斷學生在選定期別下是否有家長回報紀錄
+    function isStudentReportedInTerm(student, term) {
+      if (term === "1") {
+        return !!(student.payDate1 || student.payLast5_1 || student.payAmt1);
+      } else {
+        return !!(student.payDate2 || student.payLast5_2 || student.payAmt2);
+      }
+    }
+
     function renderVendorDashboard() {
+      const currentTerm = document.getElementById('vTermSelector').value;
+      const termLabelText = currentTerm === "1" ? "第一期" : "第二期";
+      
+      // 更新 UI 中的期別標籤文字
+      document.querySelectorAll('.termText').forEach(el => el.innerText = termLabelText);
+
       let totalAmount = 0;
       let confirmedCount = 0;
       let issueCount = 0;
+      let unconfirmedList = [];
 
       vendorDataList.forEach(s => {
         totalAmount += s.total;
-        const hasReport1 = s.payDate1 || s.payLast5_1 || s.payAmt1;
-        const hasReport2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
-        
-        if (hasReport1 || hasReport2 || s.confirmColN.includes("已") || s.confirmColV.includes("已")) {
+
+        const isConfirmed = isStudentConfirmedInTerm(s, currentTerm);
+        const isReported = isStudentReportedInTerm(s, currentTerm);
+        const isIssue = isStudentIssueInTerm(s, currentTerm);
+
+        if (isConfirmed || isReported) {
           confirmedCount++;
         }
-        if (s.confirmColN.includes("有問題") || s.confirmColV.includes("有問題")) {
+
+        if (isIssue) {
           issueCount++;
+        }
+
+        // 當期未確認對帳判定：只要當期尚未確認，即放入未對帳清單
+        if (!isConfirmed) {
+          unconfirmedList.push(s.name);
         }
       });
 
@@ -316,6 +385,19 @@
       document.getElementById('vTotalAmount').innerText = totalAmount.toLocaleString();
       document.getElementById('vConfirmedCount').innerText = confirmedCount;
       document.getElementById('vIssueCount').innerText = issueCount;
+      document.getElementById('unconfirmedCount').innerText = unconfirmedList.length;
+
+      // 渲染「未查看/未對帳學生名單」標籤
+      const tagContainer = document.getElementById('unconfirmedTagList');
+      if (unconfirmedList.length === 0) {
+        tagContainer.innerHTML = `<span class="text-xs text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200"><i class="fa-solid fa-circle-check mr-1"></i> 太棒了！【${termLabelText}】全體學生皆已完成對帳確認！</span>`;
+      } else {
+        tagContainer.innerHTML = unconfirmedList.map(name => `
+          <span class="bg-rose-50 text-rose-700 border border-rose-200 text-xs px-2.5 py-1 rounded-lg font-medium shadow-sm hover:bg-rose-100 transition">
+            ${name}
+          </span>
+        `).join('');
+      }
 
       renderVendorTable();
     }
@@ -331,18 +413,20 @@
     function renderVendorTable() {
       const search = (document.getElementById('vSearchInput').value || "").trim().toLowerCase();
       const filter = document.getElementById('vFilterStatus').value;
+      const currentTerm = document.getElementById('vTermSelector').value;
       const tbody = document.getElementById('vendorTableBody');
 
       let list = vendorDataList.filter(s => {
         const matchSearch = s.name.toLowerCase().includes(search);
-        
         let matchFilter = true;
-        const hasReport1 = s.payDate1 || s.payLast5_1 || s.payAmt1;
-        const hasReport2 = s.payDate2 || s.payLast5_2 || s.payAmt2;
 
-        if (filter === 'reported1') matchFilter = hasReport1 || s.confirmColN.includes('已');
-        if (filter === 'reported2') matchFilter = hasReport2 || s.confirmColV.includes('已');
-        if (filter === 'issue') matchFilter = s.confirmColN.includes("有問題") || s.confirmColV.includes("有問題");
+        const isConfirmed = isStudentConfirmedInTerm(s, currentTerm);
+        const isReported = isStudentReportedInTerm(s, currentTerm);
+        const isIssue = isStudentIssueInTerm(s, currentTerm);
+
+        if (filter === 'unconfirmed') matchFilter = !isConfirmed;
+        if (filter === 'confirmed') matchFilter = isConfirmed || isReported;
+        if (filter === 'issue') matchFilter = isIssue;
 
         return matchSearch && matchFilter;
       });
@@ -411,6 +495,29 @@
           </tr>
         `;
       }).join('');
+    }
+
+    function copyUnconfirmedList() {
+      const currentTerm = document.getElementById('vTermSelector').value;
+      const termLabelText = currentTerm === "1" ? "第一期" : "第二期";
+      
+      const unconfirmedNames = vendorDataList
+        .filter(s => !isStudentConfirmedInTerm(s, currentTerm))
+        .map(s => s.name);
+
+      if (unconfirmedNames.length === 0) {
+        alert(`目前【${termLabelText}】沒有未對帳學員！`);
+        return;
+      }
+
+      const copyText = `【中正弦樂團 - ${termLabelText}未對帳/待確認提醒名單】\n目前共 ${unconfirmedNames.length} 位同學尚未完成對帳：\n` + unconfirmedNames.join("、 ");
+
+      navigator.clipboard.writeText(copyText).then(() => {
+        alert(`已複製 ${termLabelText} ${unconfirmedNames.length} 位未對帳學員名單至剪貼簿！`);
+      }).catch(err => {
+        console.error("複製失敗：", err);
+        alert("複製失敗，請手動選取名單。");
+      });
     }
 
     function reloadVendorData() {
