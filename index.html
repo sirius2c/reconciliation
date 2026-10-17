@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中正弦樂團旅遊對帳系統 v5.9.1</title>
+  <title>中正弦樂團旅遊對帳系統 v5.9.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -19,9 +19,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base md:text-xl font-bold leading-tight">中正弦樂團旅遊對帳系統</h1>
-            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.9.1</span>
+            <span class="hidden sm:inline-block bg-indigo-900/60 text-indigo-200 text-[10px] px-2 py-0.5 rounded border border-indigo-500/30">v5.9.2</span>
           </div>
-          <p class="hidden sm:block text-indigo-200 text-xs"></p>
+          <p class="hidden sm:block text-indigo-200 text-xs">家長對帳查詢與幹部精準對帳後台</p>
         </div>
       </div>
 
@@ -161,7 +161,7 @@
         <div>
           <span class="bg-amber-500 text-slate-900 font-bold text-xs px-2.5 py-1 rounded">幹部管理模式</span>
           <h2 class="text-2xl font-bold mt-2">樂團財務與存取監控後台</h2>
-          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析未核對學生名單 · 精確學生對帳總覽</p>
+          <p class="text-slate-400 text-xs mt-1">追蹤家長查看紀錄 · 分析當期未核對學生名單 · 精確學生對帳總覽</p>
         </div>
         <div class="flex gap-2">
           <button onclick="fetchCurrentTripSheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2.5 rounded-lg transition">
@@ -173,7 +173,23 @@
         </div>
       </div>
 
+      <!-- 幹部期別選擇列 -->
+      <div class="bg-indigo-900 text-white p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 shadow-md">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-filter text-amber-400"></i>
+          <span class="font-bold text-sm">幹部審核期別：</span>
+          <select id="adminTermSelector" onchange="renderAdminDashboard()" class="bg-indigo-800 text-amber-300 text-sm font-bold border border-indigo-600 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="1" selected>第一期對帳 (Col N)</option>
+            <option value="2">第二期對帳 (Col V)</option>
+          </select>
+        </div>
+        <div class="text-xs text-indigo-200">
+          * 提醒名單與未對帳數據已依據選擇期別獨立計算，不互相干擾。
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Log 查看區 -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
             <span><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>家長存取查看紀錄 (Log)</span>
@@ -182,9 +198,13 @@
           <div id="accessLogList" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-xs text-slate-600 divide-y"></div>
         </div>
 
+        <!-- 當期未對帳 / 未查看名單區 -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 class="text-md font-bold text-slate-800 border-b pb-2 flex items-center justify-between">
-            <span><i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>未查看/未對帳學生名單 (<span id="unviewedCount">0</span> 人)</span>
+            <span>
+              <i class="fa-solid fa-user-xmark text-rose-600 mr-2"></i>
+              <span class="adminTermText">第一期</span>未對帳/待確認名單 (<span id="unviewedCount">0</span> 人)
+            </span>
             <button onclick="copyUnviewedList()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded hover:bg-indigo-100 font-medium">
               <i class="fa-solid fa-copy mr-1"></i>複製提醒名單
             </button>
@@ -193,6 +213,7 @@
         </div>
       </div>
 
+      <!-- 全團對帳總覽表 -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
           <div>
@@ -201,8 +222,17 @@
             </h3>
             <p class="text-xs text-slate-400 mt-0.5">已自動過濾家屬列，精確歸納展出正式團員</p>
           </div>
-          <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
-            class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+          <div class="flex items-center gap-2">
+            <select id="adminFilterStatus" onchange="renderAdminStudentTable()" class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+              <option value="all" selected>顯示全部學員</option>
+              <option value="unconfirmed">僅顯示：【當期】未對帳/待確認</option>
+              <option value="confirmed">僅顯示：【當期】家長已確認</option>
+              <option value="unviewed">僅顯示：完全未查看 (未登入)</option>
+            </select>
+
+            <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="搜尋學生姓名..." 
+              class="px-3 py-1.5 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -249,7 +279,7 @@
     <div class="max-w-6xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
       <p>© 中正弦樂團家長後援會 旅遊帳務核對系統</p>
       <div>
-        <span>系統版本：<strong class="text-slate-700 font-mono">v5.9.1-fixed</strong></span>
+        <span>系統版本：<strong class="text-slate-700 font-mono">v5.9.2-fixed</strong></span>
       </div>
     </div>
   </footer>
@@ -394,7 +424,7 @@
           deposit2 = Number(row[exactAmtKey2].toString().replace(/[^0-9]/g, '')) || 0;
         }
 
-        if (name && name.length > 0 && !name.includes('<html')) {
+        if (name && name.length > 0 && !name.includes('<html') && !isFamilyMemberName(name)) {
           list.push({
             rawName: name,
             rawBdayNorm: normBday,
@@ -425,7 +455,6 @@
       return true;
     }
 
-    // 穩定連線引擎（支援 GAS 冷啟動 25 秒超時與自動重試）
     async function fetchCurrentTripSheet(forceRefresh = false, retryCount = 0) {
       const statusEl = document.getElementById('syncStatus');
       statusEl.innerHTML = `<div class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span>[1/3] 正在向 GAS 雲端發送連線請求${retryCount > 0 ? ` (第 ${retryCount + 1} 次嘗試)` : ''}...</span></div>`;
@@ -434,7 +463,6 @@
 
       try {
         const controller = new AbortController();
-        // GAS 首次喚醒讀取試算表約需 8~15 秒，設定 25 秒超時避免誤殺正常連線
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         const res = await fetch(fetchUrl, {
@@ -451,7 +479,7 @@
         try {
           resultJson = JSON.parse(rawText);
         } catch (e) {
-          throw new Error("GAS 回傳非 JSON 格式（可能是權限問題或 HTML 頁面）");
+          throw new Error("GAS 回傳非 JSON 格式");
         }
 
         if (resultJson.status === "success" && Array.isArray(resultJson.data)) {
@@ -497,6 +525,17 @@
           })
         }).catch(err => {});
       } catch(e) {}
+    }
+
+    function getAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      return JSON.parse(localStorage.getItem(logKey) || "[]");
+    }
+
+    function clearAccessLogs() {
+      const logKey = `access_log_${currentTripKey}`;
+      localStorage.removeItem(logKey);
+      if (isAdminMode) renderAdminDashboard();
     }
 
     function execLogin() {
@@ -566,7 +605,6 @@
       const hasReport1 = currentUser.payDate1 || currentUser.payLast5_1 || currentUser.payAmt1;
 
       if (dep1 > 0) {
-        // 【階段三：廠商對銷成功 (Col M > 0)】
         stage1Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage1Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
@@ -597,7 +635,6 @@
           </div>
         `;
       } else {
-        // 【階段一 & 二：廠商尚未入帳 (Col M == 0)】
         const statusBadge = hasReport1 
           ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
           : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
@@ -628,7 +665,7 @@
 
             ${hasReport1 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod1 || '網路銀行/ATM'}] ${currentUser.payDate1} 匯款 NT$ ${Number(currentUser.payAmt1 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_1})
               </div>
             ` : ''}
 
@@ -648,19 +685,17 @@
               </div>
               <div>
                 <label class="block text-[11px] font-medium text-slate-600 mb-1">帳號末五碼 (Col I)</label>
-                <input type="text" id="payLast5_1" value="${currentUser.payLast5_1 || ''}" maxlength="5" placeholder="5位數字" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                <input type="text" id="payLast5_1" maxlength="5" placeholder="例如：12345" value="${currentUser.payLast5_1 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
               </div>
               <div>
                 <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款金額 (Col J)</label>
-                <input type="number" id="payAmt_1" value="${currentUser.payAmt1 || ''}" placeholder="例如：10000" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="number" id="payAmt_1" placeholder="金額" value="${currentUser.payAmt1 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
             </div>
 
-            <div class="flex justify-end pt-2 border-t border-slate-100">
-              <button id="btnSubmit_1" onclick="submitStagePayment('第一期')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow">
-                <i class="fa-solid fa-paper-plane mr-1"></i>儲存第一期匯款資訊
-              </button>
-            </div>
+            <button onclick="submitParentReport(1)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-2 rounded-lg font-bold shadow transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-paper-plane"></i> 送出第一期匯款回報
+            </button>
           </div>
         `;
       }
@@ -670,7 +705,6 @@
       const hasReport2 = currentUser.payDate2 || currentUser.payLast5_2 || currentUser.payAmt2;
 
       if (dep2 > 0) {
-        // 【階段三：廠商對銷成功 (Col U > 0)】
         stage2Card.className = "p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3";
         stage2Card.innerHTML = `
           <div class="flex flex-wrap justify-between items-center gap-3">
@@ -701,7 +735,6 @@
           </div>
         `;
       } else {
-        // 【階段一 & 二：廠商尚未入帳 (Col U == 0)】
         const statusBadge2 = hasReport2 
           ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200"><i class="fa-solid fa-spinner fa-spin text-indigo-600 mr-1"></i>對帳中 (等待廠商確認)</span>`
           : `<span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">待繳費/對帳中</span>`;
@@ -715,7 +748,7 @@
             </div>
             <div class="text-right">
               <span class="text-xs text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md font-medium">
-                <i class="fa-solid fa-pen-to-square mr-1 text-indigo-600"></i>家長匯款填寫區
+                <i class="fa-solid fa-pen-to-square mr-1 text-indigo-600"></i>家長匯款填寫區 (Col O~R)
               </span>
             </div>
           </div>
@@ -732,13 +765,13 @@
 
             ${hasReport2 ? `
               <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 || 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
+                <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>已填寫回報：[${currentUser.payMethod2 || '網路銀行/ATM'}] ${currentUser.payDate2} 匯款 NT$ ${Number(currentUser.payAmt2 \vert{}\vert{} 0).toLocaleString()} (末五碼: ${currentUser.payLast5_2})
               </div>
             ` : ''}
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款方式</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款方式 (Col O)</label>
                 <select id="payMethod_2" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                   <option value="網路銀行/ATM" ${currentUser.payMethod2 === '網路銀行/ATM' ? 'selected' : ''}>網路銀行/ATM</option>
                   <option value="刷卡" ${currentUser.payMethod2 === '刷卡' ? 'selected' : ''}>刷卡</option>
@@ -747,109 +780,116 @@
                 </select>
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款日期</label>
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款日期 (Col P)</label>
                 <input type="date" id="payDate_2" value="${currentUser.payDate2 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">帳號末五碼</label>
-                <input type="text" id="payLast5_2" value="${currentUser.payLast5_2 || ''}" maxlength="5" placeholder="5位數字" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">帳號末五碼 (Col Q)</label>
+                <input type="text" id="payLast5_2" maxlength="5" placeholder="例如：12345" value="${currentUser.payLast5_2 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
               </div>
               <div>
-                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款金額</label>
-                <input type="number" id="payAmt_2" value="${currentUser.payAmt2 || ''}" placeholder="例如：10000" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <label class="block text-[11px] font-medium text-slate-600 mb-1">匯款金額 (Col R)</label>
+                <input type="number" id="payAmt_2" placeholder="金額" value="${currentUser.payAmt2 || ''}" class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
             </div>
 
-            <div class="flex justify-end pt-2 border-t border-slate-100">
-              <button id="btnSubmit_2" onclick="submitStagePayment('第二期')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow">
-                <i class="fa-solid fa-paper-plane mr-1"></i>儲存第二期匯款資訊
-              </button>
-            </div>
+            <button onclick="submitParentReport(2)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-2 rounded-lg font-bold shadow transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-paper-plane"></i> 送出第二期匯款回報
+            </button>
           </div>
         `;
       }
     }
 
-    async function submitStagePayment(stageName) {
-      if (!currentUser || !currentUser.rawName) return;
+    async function sendDepositConfirmation(stage, status) {
+      if (!currentUser) return;
+      const studentName = currentUser.rawName;
+      const targetCol = stage === "第一期" ? "Col N" : "Col V";
 
-      const stageNum = stageName.includes("一") ? "1" : "2";
-      const pMethod = document.getElementById(`payMethod_${stageNum}`).value;
-      const pDate = document.getElementById(`payDate_${stageNum}`).value;
-      const pLast5 = document.getElementById(`payLast5_${stageNum}`).value;
-      const pAmt = document.getElementById(`payAmt_${stageNum}`).value;
+      if (!confirm(`確定要為【${studentName}】提交 ${stage} 對帳狀態：[${status}] 嗎？`)) return;
 
-      if (!pDate || !pAmt || !pLast5) {
-        alert("請完整填寫：匯款日期、帳號末五碼與匯款金額！");
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "updateConfirmation",
+            trip: currentTripKey,
+            studentName: studentName,
+            stage: stage,
+            status: status
+          })
+        });
+        const result = await res.json();
+        if (result.status === "success") {
+          alert(`成功同步 ${stage} 對帳狀態至 ${targetCol}！`);
+          if (stage === "第一期") currentUser.confirmColN = status;
+          else currentUser.confirmColV = status;
+          renderUserDashboard();
+        } else {
+          alert(`寫入失敗：${result.message}`);
+        }
+      } catch (e) {
+        alert("網路連線失敗，請稍後重試！");
+      }
+    }
+
+    async function submitParentReport(stageNum) {
+      if (!currentUser) return;
+      const method = document.getElementById(`payMethod_${stageNum}`).value;
+      const date = document.getElementById(`payDate_${stageNum}`).value;
+      const last5 = document.getElementById(`payLast5_${stageNum}`).value.trim();
+      const amt = document.getElementById(`payAmt_${stageNum}`).value.trim();
+
+      if (!date || !last5 || !amt) {
+        alert("請完整填寫匯款日期、帳號末五碼與金額！");
         return;
       }
 
-      const btn = document.getElementById(`btnSubmit_${stageNum}`);
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i>傳送中...`;
+      const stageText = stageNum === 1 ? "第一期" : "第二期";
+      if (!confirm(`確定要送出【${currentUser.rawName}】${stageText} 匯款回報嗎？`)) return;
 
       try {
         const res = await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
-            action: "reportPayment",
+            action: "submitReport",
+            trip: currentTripKey,
             studentName: currentUser.rawName,
-            stageName: stageName,
-            payMethod: pMethod,
-            payDate: pDate,
-            accountLast5: pLast5,
-            payAmount: pAmt
+            stage: stageNum,
+            method: method,
+            date: date,
+            last5: last5,
+            amount: amt
           })
         });
-
         const result = await res.json();
         if (result.status === "success") {
-          alert(`感謝您！${stageName}的匯款回報已成功寫入試算表。`);
-          await fetchCurrentTripSheet(true);
-          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
-          if (freshUser) currentUser = freshUser;
+          alert(`成功送出 ${stageText} 匯款回報！`);
+          if (stageNum === 1) {
+            currentUser.payMethod1 = method;
+            currentUser.payDate1 = date;
+            currentUser.payLast5_1 = last5;
+            currentUser.payAmt1 = amt;
+            currentUser.confirmColN = "家長已回報";
+          } else {
+            currentUser.payMethod2 = method;
+            currentUser.payDate2 = date;
+            currentUser.payLast5_2 = last5;
+            currentUser.payAmt2 = amt;
+            currentUser.confirmColV = "家長已回報";
+          }
           renderUserDashboard();
         } else {
-          alert(`回報失敗：${result.message}`);
+          alert(`送出失敗：${result.message}`);
         }
-      } catch (err) {
-        alert("發送失敗，請確認網路連線後重試！");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1"></i>儲存${stageName}匯款資訊`;
+      } catch (e) {
+        alert("連線失敗，請再試一次！");
       }
     }
 
-    async function sendDepositConfirmation(stageName, statusValue) {
-      if (!currentUser || !currentUser.rawName) return;
-
-      try {
-        const res = await fetch(GAS_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({
-            action: "confirmDeposit",
-            studentName: currentUser.rawName,
-            stageName: stageName,
-            status: statusValue
-          })
-        });
-
-        const result = await res.json();
-        if (result.status === "success") {
-          alert(`已成功更新【${stageName}】家長對帳狀態：${statusValue}`);
-          await fetchCurrentTripSheet(true);
-          const freshUser = memoryStudents.find(s => s.rawName === currentUser.rawName);
-          if (freshUser) currentUser = freshUser;
-          renderUserDashboard();
-        }
-      } catch (err) {
-        alert("連線發送失敗！");
-      }
-    }
-
-    // 幹部後台完整邏輯
+    // 幹部 Modal 與驗證
     function openAdminModal() {
       document.getElementById('adminModal').classList.remove('hidden');
       document.getElementById('adminPasswordInput').value = "";
@@ -861,169 +901,171 @@
     }
 
     function verifyAdminPassword() {
-      const pwd = document.getElementById('adminPasswordInput').value;
-      if (pwd === ADMIN_PASSWORD) {
+      const input = document.getElementById('adminPasswordInput').value;
+      if (input === ADMIN_PASSWORD) {
         isAdminMode = true;
         closeAdminModal();
-        
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('dashboardSection').classList.add('hidden');
         document.getElementById('adminSection').classList.remove('hidden');
-
         renderAdminDashboard();
       } else {
-        alert("密碼不正確！預設密碼為 admin123");
+        alert("幹部密碼不正確！");
       }
     }
 
     function closeAdminPanel() {
       isAdminMode = false;
       document.getElementById('adminSection').classList.add('hidden');
-      document.getElementById('loginSection').classList.remove('hidden');
+      if (currentUser) {
+        document.getElementById('dashboardSection').classList.remove('hidden');
+      } else {
+        document.getElementById('loginSection').classList.remove('hidden');
+      }
     }
 
+    // 幹部 Dashboard 渲染邏輯 (修復分期與未查看)
     function renderAdminDashboard() {
-      renderAccessLogs();
-      renderUnviewedStudents();
-      renderAdminStudentTable();
-    }
+      if (!isAdminMode) return;
 
-    function renderAccessLogs() {
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const container = document.getElementById('accessLogList');
-
-      if (logs.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-center py-4">尚無家長對帳查看紀錄。</p>`;
-        return;
-      }
-
-      container.innerHTML = logs.map(l => `
-        <div class="py-1.5 flex justify-between items-center">
-          <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${l.name} 同學家長</span>
-          <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
-        </div>
-      `).join('');
-    }
-
-    function clearAccessLogs() {
-      if (confirm("確定要清空前端 Log 紀錄嗎？")) {
-        localStorage.removeItem(`access_log_${currentTripKey}`);
-        renderAccessLogs();
-        renderUnviewedStudents();
-      }
-    }
-
-    let currentUnviewedNames = [];
-    function renderUnviewedStudents() {
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const viewedNames = new Set(logs.map(l => l.name));
-
-      const studentOnlyNames = memoryStudents
-        .filter(s => !isFamilyMemberName(s.rawName))
-        .map(s => s.rawName);
-
-      currentUnviewedNames = Array.from(new Set(studentOnlyNames)).filter(name => !viewedNames.has(name));
-
-      document.getElementById('unviewedCount').innerText = currentUnviewedNames.length;
-      const container = document.getElementById('unviewedStudentList');
-
-      if (currentUnviewedNames.length === 0) {
-        container.innerHTML = `<span class="text-emerald-600 font-medium py-2"><i class="fa-solid fa-circle-check mr-1"></i>太棒了！全團學生家長皆已進入系統查看過帳務。</span>`;
-        return;
-      }
-
-      container.innerHTML = currentUnviewedNames.map(name => `
-        <span class="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">
-          ${name}
-        </span>
-      `).join('');
-    }
-
-    function copyUnviewedList() {
-      if (currentUnviewedNames.length === 0) {
-        alert("目前全團家長皆已完成查看，無需發送提醒！");
-        return;
-      }
-
-      const text = `【樂團旅遊帳務核對溫馨提醒】\n各位家長您好，請以下未完成對帳的團員家長，於近期抽空開啟對帳系統核對金額：\n\n未對帳學生：${currentUnviewedNames.join('、')}\n\n對帳網址：${window.location.href}`;
-      navigator.clipboard.writeText(text).then(() => {
-        alert("提醒文字與未查看名單已成功複製到剪貼簿，可直接貼至 LINE 群組！");
-      });
-    }
-
-    function renderAdminStudentTable() {
-      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
-      const tbody = document.getElementById('adminStudentTbody');
+      const currentTerm = document.getElementById('adminTermSelector').value;
+      const termLabelText = currentTerm === "1" ? "第一期" : "第二期";
       
-      const logKey = `access_log_${currentTripKey}`;
-      const logs = JSON.parse(localStorage.getItem(logKey) || "[]");
-      const viewedNames = new Set(logs.map(l => l.name));
+      document.querySelectorAll('.adminTermText').forEach(el => el.innerText = termLabelText);
 
-      const cleanStudents = memoryStudents.filter(s => !isFamilyMemberName(s.rawName));
-      const groupedMap = new Map();
+      // 1. 渲染 Log 列表
+      const accessLogs = getAccessLogs();
+      const logContainer = document.getElementById('accessLogList');
+      if (accessLogs.length === 0) {
+        logContainer.innerHTML = `<p class="text-slate-400 italic py-2">尚無家長查看紀錄</p>`;
+      } else {
+        logContainer.innerHTML = accessLogs.map(log => `
+          <div class="py-1.5 flex justify-between items-center">
+            <span class="font-bold text-slate-700"><i class="fa-solid fa-user-check text-emerald-500 mr-1.5"></i>${log.name} 同學家長</span>
+            <span class="text-[11px] text-slate-400 font-mono">${log.time}</span>
+          </div>
+        `).join('');
+      }
 
-      cleanStudents.forEach(s => {
-        if (!groupedMap.has(s.rawName)) {
-          groupedMap.set(s.rawName, {
-            rawName: s.rawName,
-            rawBdayNorm: s.rawBdayNorm,
-            room: cleanRoomName(s.room),
-            total: s.total,
-            confirmColN: s.confirmColN || '未確認',
-            confirmColV: s.confirmColV || '未確認',
-            paid: Number(s.deposit1 || 0) + Number(s.deposit2 || 0)
+      // 2. 計算當期未對帳 / 未查看名單
+      const viewedNames = new Set(accessLogs.map(l => l.name));
+      let unconfirmedList = [];
+
+      memoryStudents.forEach(s => {
+        const confirmStr = currentTerm === "1" ? s.confirmColN : s.confirmColV;
+        const isConfirmed = confirmStr.includes("已") || confirmStr.includes("無誤");
+
+        // 當期未完成確認
+        if (!isConfirmed) {
+          unconfirmedList.push({
+            name: s.rawName,
+            isViewed: viewedNames.has(s.rawName)
           });
         }
       });
 
-      let groupedList = Array.from(groupedMap.values());
+      document.getElementById('unviewedCount').innerText = unconfirmedList.length;
 
-      if (search) {
-        groupedList = groupedList.filter(s => s.rawName.toLowerCase().includes(search));
+      const unviewedContainer = document.getElementById('unviewedStudentList');
+      if (unconfirmedList.length === 0) {
+        unviewedContainer.innerHTML = `<span class="text-xs text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200"><i class="fa-solid fa-circle-check mr-1"></i> 太棒了！【${termLabelText}】全體學生皆已完成對帳！</span>`;
+      } else {
+        unviewedContainer.innerHTML = unconfirmedList.map(item => `
+          <span class="border text-xs px-2.5 py-1 rounded-lg font-medium shadow-sm transition flex items-center gap-1 ${item.isViewed ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">
+            ${item.isViewed ? '<i class="fa-solid fa-eye text-amber-500" title="家長已查看過"></i>' : '<i class="fa-solid fa-eye-slash text-rose-400" title="完全未登入查看"></i>'}
+            ${item.name}
+          </span>
+        `).join('');
       }
 
-      document.getElementById('adminTotalCount').innerText = groupedList.length;
+      document.getElementById('adminTotalCount').innerText = memoryStudents.length;
+      renderAdminStudentTable();
+    }
 
-      tbody.innerHTML = groupedList.map(s => {
-        const hasViewed = viewedNames.has(s.rawName);
+    function renderAdminStudentTable() {
+      const search = (document.getElementById('adminSearchInput').value || "").trim().toLowerCase();
+      const filter = document.getElementById('adminFilterStatus').value;
+      const currentTerm = document.getElementById('adminTermSelector').value;
+      const tbody = document.getElementById('adminStudentTbody');
 
-        let nBadge = "bg-slate-100 text-slate-600";
-        if (s.confirmColN.includes("已確認") || s.confirmColN.includes("無誤")) nBadge = "bg-emerald-100 text-emerald-700 font-bold";
+      const accessLogs = getAccessLogs();
+      const viewedNames = new Set(accessLogs.map(l => l.name));
 
-        let vBadge = "bg-slate-100 text-slate-600";
-        if (s.confirmColV.includes("已確認") || s.confirmColV.includes("無誤")) vBadge = "bg-emerald-100 text-emerald-700 font-bold";
+      let list = memoryStudents.filter(s => {
+        const matchSearch = s.rawName.toLowerCase().includes(search);
+        let matchFilter = true;
+
+        const confirmStr = currentTerm === "1" ? s.confirmColN : s.confirmColV;
+        const isConfirmed = confirmStr.includes("已") || confirmStr.includes("無誤");
+        const isViewed = viewedNames.has(s.rawName);
+
+        if (filter === 'unconfirmed') matchFilter = !isConfirmed;
+        if (filter === 'confirmed') matchFilter = isConfirmed;
+        if (filter === 'unviewed') matchFilter = !isViewed;
+
+        return matchSearch && matchFilter;
+      });
+
+      tbody.innerHTML = list.map(s => {
+        const isViewed = viewedNames.has(s.rawName);
+        const totalPaid = s.deposit1 + s.deposit2;
 
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="p-3 font-bold text-slate-800">${s.rawName}</td>
             <td class="p-3">
-              ${hasViewed 
-                ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye mr-1"></i>已查看</span>` 
-                : `<span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-medium"><i class="fa-solid fa-eye-slash mr-1"></i>未查看</span>`}
+              ${isViewed 
+                ? `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-2 py-0.5 rounded text-[11px]"><i class="fa-solid fa-check mr-1"></i>已查看</span>`
+                : `<span class="bg-rose-100 text-rose-800 border border-rose-300 font-bold px-2 py-0.5 rounded text-[11px]"><i class="fa-solid fa-xmark mr-1"></i>未查看</span>`
+              }
             </td>
-            <td class="p-3 font-mono">${s.rawBdayNorm || '--'}</td>
-            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">${cleanRoomName(s.room)}</span></td>
-            <td class="p-3">NT$ ${s.total.toLocaleString()}</td>
-            <td class="p-3 text-emerald-600 font-bold">NT$ ${s.paid.toLocaleString()}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${nBadge}">${s.confirmColN}</span></td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] ${vBadge}">${s.confirmColV}</span></td>
+            <td class="p-3 font-mono text-slate-600">${s.rawBdayNorm || '--'}</td>
+            <td class="p-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-slate-700">${s.room}</span></td>
+            <td class="p-3 font-medium">NT$ ${s.total.toLocaleString()}</td>
+            <td class="p-3 font-bold text-emerald-600">NT$ ${totalPaid.toLocaleString()}</td>
+            <td class="p-3"><span class="px-2 py-1 rounded text-[11px] ${s.confirmColN.includes('已') ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300' : 'bg-slate-100 text-slate-600'}">${s.confirmColN}</span></td>
+            <td class="p-3"><span class="px-2 py-1 rounded text-[11px] ${s.confirmColV.includes('已') ? 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300' : 'bg-slate-100 text-slate-600'}">${s.confirmColV}</span></td>
           </tr>
         `;
       }).join('');
     }
 
+    function copyUnviewedList() {
+      const currentTerm = document.getElementById('adminTermSelector').value;
+      const termLabelText = currentTerm === "1" ? "第一期" : "第二期";
+
+      const unconfirmedStudents = memoryStudents.filter(s => {
+        const confirmStr = currentTerm === "1" ? s.confirmColN : s.confirmColV;
+        return !confirmStr.includes("已") && !confirmStr.includes("無誤");
+      }).map(s => s.rawName);
+
+      if (unconfirmedStudents.length === 0) {
+        alert(`目前【${termLabelText}】沒有未對帳學生！`);
+        return;
+      }
+
+      const copyText = `【中正弦樂團 - ${termLabelText}對帳提醒名單】\n目前共 ${unconfirmedStudents.length} 位同學尚未完成對帳：\n` + unconfirmedStudents.join("、 ");
+
+      navigator.clipboard.writeText(copyText).then(() => {
+        alert(`已成功複製 ${termLabelText} ${unconfirmedStudents.length} 位未對帳學生名單！`);
+      }).catch(err => {
+        alert("複製失敗，請手動複製。");
+      });
+    }
+
     function logout() {
       currentUser = null;
-      document.getElementById('loginSection').classList.remove('hidden');
       document.getElementById('dashboardSection').classList.add('hidden');
+      document.getElementById('adminSection').classList.add('hidden');
       document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
       document.getElementById('loginForm').reset();
     }
 
-    // 初始化自動連線
-    fetchCurrentTripSheet(true);
+    // 頁面載入自動讀取
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchCurrentTripSheet();
+    });
   </script>
 </body>
 </html>
